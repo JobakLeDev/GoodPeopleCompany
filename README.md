@@ -1,4 +1,6 @@
-# Good People Company
+# Goodfolks Industries
+
+> *so much better together*
 
 Support web d'un jeu grandeur nature d'un week-end : une quarantaine de joueurs
 sont les **actionnaires d'une entreprise** et doivent trancher une décision. Tout
@@ -75,6 +77,11 @@ Console Firebase → **Firestore Database → Règles** → coller `firestore.ru
 
 Repo → **Settings → Pages** → Source `Deploy from a branch`, branche `main`, dossier `/ (root)`.
 Site en ligne sur `https://jobakledev.github.io/GoodPeopleCompany/`.
+
+> Le dépôt s'appelle encore `GoodPeopleCompany` alors que la société s'appelle
+> Goodfolks Industries : sans conséquence, mais l'URL publique en hérite. Pour
+> l'aligner, renommer le dépôt dans **Settings → General** (GitHub pose une
+> redirection automatique depuis l'ancienne adresse).
 
 ### 5. Créer les 40 actionnaires
 
@@ -205,6 +212,30 @@ registre.
 
 Onglet **Réglages** → *Émettre vers la trésorerie* : crée un stock de parts non
 attribuées, à distribuer ensuite sans diluer personne.
+
+---
+
+## Charte graphique
+
+Tout est tiré du logo (`img/Logo Goodfolks Industries minimaliste.png`), dont
+les déclinaisons web sont générées dans `img/` :
+
+| Couleur | Hex | Usage |
+|---|---|---|
+| Navy | `#1b3a57` | encre, titres, chiffres, actions irréversibles, parts engagées |
+| Pétrole | `#387589` | accent : liens, barres, indicateurs, parts en banque |
+| Sauge | `#68876c` | positif, option gagnante au dépouillement |
+| Ocre | `#b07d2b` | jetons physiques en circulation, vigilance |
+| Brique | `#b3503f` | danger, dépassement |
+
+Fond papier `#f4f7f8`, surfaces blanches, filets `#dde7ea`. Typographie :
+**Poppins** pour les titres et les chiffres (la géométrie du logotype),
+**Inter** pour le texte courant. Les variables vivent en haut de
+`common/style.css` — changer la marque, c'est changer ces lignes-là.
+
+Fichiers générés depuis le PNG source (ImageMagick) : `goodfolks-logo.png`
+(lockup 760px, pour l'accueil), `goodfolks-mark.png` (la marque seule, 192px,
+pour les en-têtes), `favicon.png`, `apple-touch-icon.png`.
 
 ---
 
