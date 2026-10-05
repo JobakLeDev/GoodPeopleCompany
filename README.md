@@ -1,9 +1,10 @@
 # Good People Company
 
 Support web d'un jeu grandeur nature d'un week-end : une quarantaine de joueurs
-sont les **actionnaires d'une entreprise** et doivent trancher une décision par
-un **vote pondéré** à la fin du week-end. Tout le week-end, ils s'échangent des
-parts — entre eux, et avec l'organisation au guichet.
+sont les **actionnaires d'une entreprise** et doivent trancher une décision. Tout
+le week-end, ils s'échangent des parts — entre eux, et avec l'organisation au
+guichet. Le **dimanche matin**, chacun échange ses parts contre des voix et le
+scrutin tranche.
 
 - **Hébergement** : GitHub Pages
 - **Base de données** : Firebase Firestore (temps réel, SDK compat v9)
@@ -25,9 +26,9 @@ sens : *retrait* (compte → jetons) et *dépôt* (jetons → compte).
 
 **La règle qui structure tout le week-end** : l'app ne peut compter que ce
 qu'elle voit. Un jeton dans une poche est intraçable par construction — donc
-**seules les parts en banque sont comptées au scrutin**, et il faut avoir déposé
-ses jetons avant la clôture. D'où la ruée au guichet en fin de partie, qui est
-une mécanique, pas un effet de bord.
+**seule une part en banque peut devenir une voix**, et il faut avoir déposé ses
+jetons avant la clôture. D'où la ruée au guichet le dimanche matin, qui est une
+mécanique, pas un effet de bord.
 
 Le jeton est **discret mais muet** ; la part en banque est **bavarde mais elle
 compte**. Arbitrer entre les deux est le cœur du jeu.
@@ -38,10 +39,14 @@ compte**. Arbitrer entre les deux est le cœur du jeu.
   définitif, tracé dans son relevé et dans celui du destinataire.
 - Il peut aussi **tout sortir en jetons** pour négocier sans laisser de trace —
   au risque d'oublier de redéposer avant l'heure.
-- Le **registre public** ne montre que les parts en banque. Celui qui garde tout
-  en jetons est invisible au classement… et sans voix au scrutin.
+- Le **registre public** compte les parts en banque **et** celles engagées au
+  vote. Celui qui garde tout en jetons est invisible au classement… et sans voix
+  au scrutin.
 - L'indicateur **« en jetons dehors »** dit à tout le monde quelle fraction du
-  capital est dans la nature à cet instant.
+  capital est dans la nature à cet instant — donc combien de voix dorment encore
+  dans des poches.
+- Le dimanche, voter **immobilise** les parts engagées : elles réapparaissent sur
+  les comptes au dépouillement.
 
 ---
 
@@ -127,35 +132,62 @@ attente.
 
 ---
 
-## Le scrutin
+## Le scrutin — l'événement du dimanche matin
 
-Onglet **Scrutin** de la console :
+Voter n'est pas un poids passif : c'est un **acte de conversion**. Quand le
+scrutin s'ouvre, chaque actionnaire **échange des parts de son compte contre des
+voix**, à raison d'**1 part = 1 voix**.
 
-1. Rédiger la **question**, l'**exposé des motifs**, et les **options** (une par
-   ligne, format `Intitulé;précision`).
-2. Fixer la **clôture** — c'est aussi l'heure limite de dépôt des jetons. Les
-   joueurs voient un compte à rebours.
-3. **Ouvrir le scrutin**. Avant ça, les joueurs ne voient rien.
-4. Pendant le vote : **participation en direct** (votants, % du capital exprimé,
-   jetons encore dehors) et la **liste de ceux qui n'ont pas voté** — avec leur
-   poids, ce qui en fait une liste de gens à aller chercher.
-5. **Clore et dépouiller**.
+### Les quatre règles du vote
 
-Détails qui comptent :
+1. **Répartition libre** — il peut ventiler ses voix entre plusieurs options
+   (7 pour A, 3 pour B). De quoi couvrir ses paris, et surtout honorer à moitié
+   une promesse faite à deux camps.
+2. **Un seul passage, définitif** — une fois le bulletin déposé, plus de retour,
+   plus de changement, plus d'ajout. Le *moment* où l'on vote devient un pari :
+   trop tôt, on rate les parts qu'on aurait pu réunir ; trop tard, on risque la
+   clôture.
+3. **Les parts sont engagées, pas dépensées** — elles quittent le compte
+   (champ `engaged`), restent bloquées le temps du scrutin, puis sont **rendues
+   automatiquement** au dépouillement.
+4. **Un jeton ne peut pas devenir une voix** — il faut l'avoir déposé au guichet
+   avant la clôture.
 
-- **Le poids est calculé au dépouillement**, pas au moment du vote. Accumuler
-  après avoir voté augmente son poids ; céder le diminue. Le total reste
-  conservé — pas de double comptage possible.
-- Un joueur peut **changer son bulletin** jusqu'à la clôture.
-- **Qui a voté est public, ce qu'il a voté ne l'est pas** avant le
-  dépouillement. Chaque bulletin vit dans son propre document `/ballots/{id}` ;
-  `/vote/current` ne porte que la liste des votants. (Au sens technique le
-  secret n'est pas garanti — voir *Sécurité* plus bas.)
-- Clore est **réversible** : « Ouvrir » relance le scrutin et efface le résultat
-  publié, les bulletins sont conservés.
+> **Pourquoi bloquer les parts ?** Ce n'est pas cosmétique. Sans blocage, on
+> voterait avec 10 parts puis on les céderait à quelqu'un qui revoterait avec les
+> mêmes. Le verrou est ce qui rend le décompte exact.
+
+### Le cycle, côté console
+
+| État | Ce que voient les actionnaires |
+|---|---|
+| **brouillon** | rien |
+| **annoncé** | la question, les options, l'heure d'ouverture — vote impossible |
+| **ouvert** | le formulaire de conversion, le compte à rebours de clôture |
+| **clos** | les résultats |
+
+L'état **annoncé** est là pour le samedi soir : tout le monde sait ce qui se joue
+et ce que ça vaut, personne ne peut encore agir. C'est le carburant des
+tractations.
+
+1. Rédiger la **question**, l'**exposé des motifs**, les **options** (une par
+   ligne, `Intitulé;précision`), l'**heure d'ouverture** et la **clôture**.
+2. **📢 Annoncer** le samedi soir.
+3. **▶ Ouvrir** le dimanche matin.
+4. Pendant le vote, la console affiche le **décompte en direct** — réservé à la
+   direction — et la **liste de ceux qui n'ont pas voté, triés par parts en
+   banque** : les premiers de la liste sont ceux qu'il faut aller chercher.
+5. **◻ Clore et dépouiller** : publie le résultat **et rend les parts engagées**.
+
+Autres détails :
+
+- **Qui a voté et combien il a engagé sont publics** ; pour quoi il a voté ne
+  l'est pas. Chaque bulletin vit dans `/ballots/{id}` ; `/vote/current.voted`
+  ne porte que le nombre de parts engagées par chacun.
 - En cas d'**égalité parfaite**, l'app le dit et ne tranche pas.
-
----
+- Un scrutin **clos ne se réouvre pas** (les parts ont été rendues) : pour
+  rejouer, « Effacer les bulletins et repasser en brouillon » remet tout à zéro
+  sans toucher aux parts détenues ni au grand livre.
 
 ## Les leviers de l'organisation
 
@@ -205,7 +237,10 @@ firestore.rules       → règles à publier dans la console Firebase
 | `issueShares` / `grantShares` / `reclaimShares` | Émission (dilution) / attribution / reprise |
 | `purchase(pid, itemId, qty)` | Achat : débite les parts **et** décrémente le stock |
 | `fileRequest(...)` | Le joueur prend un ticket au guichet |
-| `castBallot(...)` / `myBallot(...)` / `tallyVote()` | Scrutin et dépouillement pondéré |
+| `castBallot(pid, nom, alloc)` | Convertit des parts en voix, réparties ; **un seul passage**, bloque les parts |
+| `tallyVote()` | Dépouille, publie le résultat, **puis rend les parts engagées** |
+| `releaseEngaged()` / `resetVote()` | Rend les parts bloquées (idempotent) / remet le scrutin à zéro |
+| `held(p)` | Parts détenues : en banque + engagées au vote |
 | `num` `parts` `pctOf` `when` `countdown` `esc` `slugify` `miniMd` `say` | Formatage et garde-fous d'affichage |
 
 Toutes les opérations sur les parts passent par `db.runTransaction` : deux
@@ -217,9 +252,10 @@ Chacune écrit une ligne dans `/ledger`, que les règles rendent non réinscript
 ## Schéma Firestore
 
 ```
-/players/{slug}        { pseudo, code, role, shares, stats:{}, publicNote,
-                         active, createdAt }
-                       shares = parts EN BANQUE (les jetons ne sont pas ici)
+/players/{slug}        { pseudo, code, role, shares, engaged, stats:{},
+                         publicNote, active, createdAt }
+                       shares  = parts EN BANQUE (les jetons ne sont pas ici)
+                       engaged = parts bloquees au scrutin, rendues apres
 
 /config/treasury       { issued, circulating, company }
                        issued      = capital émis
@@ -234,11 +270,14 @@ Chacune écrit une ligne dans `/ledger`, que les règles rendent non réinscript
                          status:'pending'|'done'|'cancelled', ts }
 
 /vote/current          { question, detail, options:[{id,label,desc}],
-                         status:'draft'|'open'|'closed', closesAt,
-                         voted:{playerId:true},        ← qui, jamais quoi
-                         results:{ byOption, ranked, expressed, onAccounts,
-                                   voters, voidBallots, winnerId, tie, ts } }
-/ballots/{playerId}    { playerId, playerName, optionId, ts }
+                         status:'draft'|'announced'|'open'|'closed',
+                         opensAt, closesAt, openedAt, closedAt,
+                         voted:{playerId: nbParts},   ← qui et combien,
+                                                        jamais pour quoi
+                         results:{ byOption, ranked, expressed, voters,
+                                   voidShares, voidBallots, winnerId, tie, ts } }
+/ballots/{playerId}    { playerId, playerName, alloc:{optionId:nbVoix},
+                         total, ts }                  ← un seul, definitif
 
 /orders/{auto}         { playerId, playerName, itemId, itemName, qty,
                          unitPrice, total, status:'pending'|'delivered', ts }
@@ -252,7 +291,7 @@ Chacune écrit une ligne dans `/ledger`, que les règles rendent non réinscript
 ### Invariant comptable
 
 ```
-issued  =  Σ players.shares  +  circulating  +  company
+issued  =  Σ (players.shares + players.engaged)  +  circulating  +  company
 ```
 
 La console l'affiche en permanence sous le nom **« Écart comptable »**. Il doit
@@ -314,7 +353,12 @@ Auth anonyme + `uid` dans `/players/{id}` + Cloud Functions seules habilitées �
       distribuée : tu ne pourras pas remettre plus de jetons que tu n'en as
 - [ ] Catalogue du magasin rempli, prix en parts
 - [ ] Question du vote et options rédigées, enregistrées en **brouillon**
+- [ ] Heure d'**ouverture** (dimanche matin) et de **clôture** saisies
+- [ ] Décidé **quand tu annonces** la question — l'effet sur le samedi soir en dépend
 - [ ] Un test complet sur un vrai téléphone : connexion → cession → retrait au
-      guichet → dépôt → vote → dépouillement
+      guichet → dépôt → annonce → ouverture → vote réparti → dépouillement, en
+      vérifiant que les parts engagées sont bien revenues au compte
+- [ ] Testé qu'un **second vote est refusé** (un seul passage) et qu'on ne peut
+      pas engager plus de parts qu'on en a en banque
 - [ ] Un deuxième appareil de guichet prévu (tablette ou PC), pour que la file
       n'attende pas sur un seul écran

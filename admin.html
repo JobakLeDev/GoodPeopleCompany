@@ -64,8 +64,9 @@
         <div class="split-key" id="t-key"></div>
         <hr class="hr">
         <div class="stat-grid" id="t-stats"></div>
-        <p class="mini">Invariant&nbsp;: capital &eacute;mis = en banque + en jetons + tr&eacute;sorerie.
-           Un &eacute;cart signale une saisie manuelle dans la console Firebase.</p>
+        <p class="mini">Invariant&nbsp;: capital &eacute;mis = en banque + engag&eacute;es au vote
+          + en jetons + tr&eacute;sorerie. Un &eacute;cart signale une saisie manuelle dans la
+          console Firebase, ou un actionnaire supprim&eacute; qui d&eacute;tenait des parts.</p>
       </div>
     </div>
 
@@ -149,28 +150,47 @@
           <span class="mono">Intitul&eacute;;pr&eacute;cision</span></label>
           <textarea id="v-opts" style="min-height:120px" placeholder="Vendre;Encaisser 40&nbsp;% du capital, perdre l&rsquo;usine&#10;Refuser;Garder l&rsquo;usine, affronter l&rsquo;hiver&#10;Abstention"></textarea></div>
         <div class="row">
+          <div class="field"><label>Ouverture du scrutin (dimanche matin)</label>
+            <input id="v-open-at" type="datetime-local"></div>
           <div class="field"><label>Cl&ocirc;ture (= dernier d&eacute;p&ocirc;t de jetons)</label>
             <input id="v-close" type="datetime-local"></div>
         </div>
         <div class="row">
           <button class="btn" id="v-save">Enregistrer le brouillon</button>
-          <button class="btn btn-pri" id="v-open">&#9654; Ouvrir le scrutin</button>
+          <button class="btn btn-gold" id="v-announce">&#128276; Annoncer</button>
+          <button class="btn btn-pri" id="v-go">&#9654; Ouvrir le scrutin</button>
           <button class="btn btn-dng" id="v-tally">&#9633; Clore et d&eacute;pouiller</button>
         </div>
-        <p class="mini">Le d&eacute;pouillement pond&egrave;re chaque bulletin par les parts
-          <strong>en banque &agrave; cet instant</strong>. Les jetons non d&eacute;pos&eacute;s ne comptent pas.
-          Clore est r&eacute;versible&nbsp;: &laquo;&nbsp;Ouvrir&nbsp;&raquo; relance le scrutin et efface le r&eacute;sultat.</p>
+        <div class="tok-note" style="margin-top:13px"><span class="ic">&#9878;</span><div>
+          <strong>Annoncer</strong> rend la question et les options visibles de tous, avec
+          l&rsquo;heure d&rsquo;ouverture&nbsp;: le vote reste impossible. C&rsquo;est ce qui alimente les
+          tractations du samedi soir.<br>
+          <strong>Ouvrir</strong> d&eacute;clenche l&rsquo;&eacute;v&eacute;nement&nbsp;: chacun &eacute;change ses parts en
+          banque contre des voix, r&eacute;parties comme il veut, en <strong>un seul passage
+          d&eacute;finitif</strong>. Les parts engag&eacute;es sont bloqu&eacute;es, puis rendues au d&eacute;pouillement.
+        </div></div>
       </div>
     </div>
 
     <div class="pnl">
-      <div class="pnl-h"><span class="ic">&#128101;</span> Participation en direct</div>
+      <div class="pnl-h"><span class="ic">&#128200;</span> D&eacute;compte en direct <span class="sp"></span>
+        <span class="bdg bdg-vio">vue direction</span></div>
+      <div class="pnl-b" id="v-live"><div class="empty">Aucun scrutin ouvert.</div></div>
+    </div>
+
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#128101;</span> Participation</div>
       <div class="pnl-b" id="v-part"><div class="empty">Aucun scrutin ouvert.</div></div>
     </div>
 
-    <div class="pnl" id="v-res-pnl" style="display:none">
-      <div class="pnl-h"><span class="ic">&#127942;</span> R&eacute;sultat</div>
-      <div class="pnl-b" id="v-res"></div>
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#9888;</span> Remise &agrave; z&eacute;ro</div>
+      <div class="pnl-b">
+        <button class="btn btn-dng" id="v-reset">Effacer les bulletins et repasser en brouillon</button>
+        <p class="mini">Rend les parts engag&eacute;es, supprime tous les bulletins, efface le
+          r&eacute;sultat. &Agrave; utiliser pour rejouer un scrutin&nbsp;: n&rsquo;affecte ni les parts
+          d&eacute;tenues ni le grand livre.</p>
+      </div>
     </div>
   </section>
 
@@ -297,14 +317,12 @@
     <div class="pnl">
       <div class="pnl-h"><span class="ic">&#9888;</span> Fin de partie</div>
       <div class="pnl-b">
-        <p style="margin:0 0 12px;color:var(--td);font-size:.92rem">
+        <p style="margin:0;color:var(--td);font-size:.92rem">
           Apr&egrave;s le week-end, retourne dans la console Firebase &rarr; Firestore &rarr; R&egrave;gles
           et remplace tout par <span class="mono">allow read, write: if false;</span>.
-          Les comptes restent lisibles par qui conna&icirc;t l&rsquo;adresse du site tant que les
-          r&egrave;gles sont ouvertes.
+          Tant que les r&egrave;gles sont ouvertes, les comptes restent lisibles par qui
+          conna&icirc;t l&rsquo;adresse du site.
         </p>
-        <button class="btn btn-dng" id="rz-ballots">Effacer tous les bulletins</button>
-        <p class="mini">Pour rejouer un scrutin de z&eacute;ro. N&rsquo;affecte ni les parts ni le grand livre.</p>
       </div>
     </div>
   </section>
@@ -323,7 +341,8 @@
    dépend de firestore.rules (voir README).
    ============================================================ */
 const GATE_KEY = 'gpc_admin';
-let PLAYERS = [], ITEMS = [], REQS = [], POIS = [], VOTE = null, JENTRIES = [];
+let PLAYERS = [], ITEMS = [], REQS = [], POIS = [], BALLOTS = [], JENTRIES = [];
+let VOTE = null;
 let TRES = { issued:0, circulating:0, company:0 };
 let AMAP = null, poiLayer = null;
 
@@ -372,7 +391,7 @@ async function boot(){
     const d = s.exists ? s.data() : {};
     TRES = { issued:Number(d.issued)||0, circulating:Number(d.circulating)||0,
              company:Number(d.company)||0 };
-    renderTreasury();
+    renderTreasury(); renderVoteAdmin();
   });
 
   db.collection(COL.requests).where('status','==','pending').onSnapshot(qs => {
@@ -404,31 +423,41 @@ async function boot(){
   db.collection(COL.vote).doc('current').onSnapshot(s => {
     VOTE = s.exists ? s.data() : null; fillVote(); renderVoteAdmin();
   });
+
+  // Les bulletins : la direction est la seule à voir la répartition en direct.
+  db.collection(COL.ballots).onSnapshot(qs => {
+    BALLOTS = qs.docs.map(d => d.data()); renderVoteAdmin();
+  });
+
+  setInterval(renderVoteAdmin, 20000);   // compte à rebours
 }
 
-const onAccounts = () => PLAYERS.filter(p => p.active !== false)
-  .reduce((s,p) => s + (Number(p.shares)||0), 0);
+const actifs = () => PLAYERS.filter(p => p.active !== false);
+const onAccounts = () => actifs().reduce((s,p) => s + (Number(p.shares)||0), 0);
+const totalEngaged = () => actifs().reduce((s,p) => s + (Number(p.engaged)||0), 0);
 
 /* ============================================================
    Trésorerie
    ============================================================ */
 function renderTreasury(){
-  const acc = onAccounts();
-  const cap = TRES.issued || (acc + TRES.circulating + TRES.company);
+  const acc = onAccounts(), eng = totalEngaged();
+  const cap = TRES.issued || (acc + eng + TRES.circulating + TRES.company);
   const w = v => cap ? (v/cap*100).toFixed(2) + '%' : '0%';
   document.getElementById('t-split').innerHTML =
-    '<i class="s-acc" style="width:' + w(acc) + '"></i>' +
-    '<i class="s-tok" style="width:' + w(TRES.circulating) + '"></i>' +
-    '<i class="s-co"  style="width:' + w(TRES.company) + '"></i>';
+    '<i class="s-acc"  style="width:' + w(acc) + '"></i>' +
+    '<i class="s-vote" style="width:' + w(eng) + '"></i>' +
+    '<i class="s-tok"  style="width:' + w(TRES.circulating) + '"></i>' +
+    '<i class="s-co"   style="width:' + w(TRES.company) + '"></i>';
   document.getElementById('t-key').innerHTML =
     '<span><i style="background:var(--ac)"></i>En banque ' + num(acc) + '</span>' +
+    '<span><i style="background:var(--vio)"></i>Engagées au vote ' + num(eng) + '</span>' +
     '<span><i style="background:var(--gold)"></i>En jetons ' + num(TRES.circulating) + '</span>' +
-    '<span><i style="background:var(--vio)"></i>Trésorerie ' + num(TRES.company) + '</span>';
-  const ecart = TRES.issued - (acc + TRES.circulating + TRES.company);
+    '<span><i style="background:var(--b2)"></i>Trésorerie ' + num(TRES.company) + '</span>';
+  const ecart = TRES.issued - (acc + eng + TRES.circulating + TRES.company);
   document.getElementById('t-stats').innerHTML = [
     ['Capital émis', num(TRES.issued), 'plain'],
     ['En jetons dehors', num(TRES.circulating), 'gold'],
-    ['Trésorerie', num(TRES.company), 'vio'],
+    ['Trésorerie', num(TRES.company), 'plain'],
     ['Écart comptable', (ecart ? (ecart>0?'+':'') + num(ecart) : '0'), ecart ? 'gold' : 'plain']
   ].map(c => '<div class="stat"><div class="stat-v sm ' + c[2] + '">' + c[1] +
     '</div><div class="stat-l">' + c[0] + '</div></div>').join('');
@@ -475,7 +504,8 @@ function renderQueue(){
           '<span class="' + (wd ? 'amt-tok' : 'amt-in') + '">' +
           (wd ? 'retirer' : 'déposer') + ' ' + num(r.qty) + ' jeton' + (r.qty>1?'s':'') +
           '</span></div>' +
-        '<div class="lst-s">' + esc(when(r.ts)) + ' · en banque : ' + num(p.shares) + '</div></div></div>' +
+        '<div class="lst-s">' + esc(when(r.ts)) + ' · en banque : ' + num(p.shares) +
+          ((Number(p.engaged)||0) ? ' · engagées : ' + num(p.engaged) : '') + '</div></div></div>' +
       '<div class="row">' +
         '<button class="btn btn-sm btn-pri" data-act="ok">' +
           (wd ? 'Remettre les jetons' : 'Encaisser les jetons') + '</button>' +
@@ -542,7 +572,7 @@ async function createPlayer(pseudo, code, role, shares){
   const n = Math.max(0, Math.round(Number(shares)));
   await ref.set({
     pseudo, code: code || randCode(), role: role || '',
-    shares: 0, stats:{}, publicNote:'', active:true, createdAt: Date.now()
+    shares: 0, engaged: 0, stats:{}, publicNote:'', active:true, createdAt: Date.now()
   });
   // La dotation initiale est une émission : elle crée le capital.
   if (n > 0){
@@ -616,16 +646,19 @@ document.getElementById('p-print').addEventListener('click', () => {
 function renderPlayers(){
   const box = document.getElementById('p-list');
   if (!PLAYERS.length){ box.innerHTML = '<div class="empty">Aucun actionnaire.</div>'; return; }
-  const cap = TRES.issued || onAccounts();
-  box.innerHTML = PLAYERS.map(p =>
-    '<div class="ed" data-pid="' + esc(p.id) + '">' +
+  const cap = TRES.issued || (onAccounts() + totalEngaged());
+  box.innerHTML = PLAYERS.map(p => {
+    const eng = Number(p.engaged)||0;
+    return '<div class="ed" data-pid="' + esc(p.id) + '">' +
       '<div class="ed-h"><div class="lst-main">' +
         '<div class="lst-t">' + esc(p.pseudo || p.id) +
-          (p.active === false ? ' <span class="bdg bdg-dng">suspendu</span>' : '') + '</div>' +
+          (p.active === false ? ' <span class="bdg bdg-dng">suspendu</span>' : '') +
+          (eng ? ' <span class="bdg bdg-vio">&#128499; ' + num(eng) + ' engagées</span>' : '') + '</div>' +
         '<div class="lst-s mono">' + esc(p.id) + ' · code ' + esc(p.code || '?') +
           (p.role ? ' · ' + esc(p.role) : '') + '</div></div>' +
         '<div class="lst-amt">' + num(p.shares) +
-          '<span class="lst-s"> · ' + pctOf(p.shares, cap||1) + '</span></div></div>' +
+          (eng ? '<span class="amt-vote"> +' + num(eng) + '</span>' : '') +
+          '<span class="lst-s"> · ' + pctOf(held(p), cap||1) + '</span></div></div>' +
       '<div class="row">' +
         '<div class="field"><label>Nombre de parts</label>' +
           '<input class="f-qty" type="number" min="1" step="1" placeholder="0"></div>' +
@@ -649,7 +682,8 @@ function renderPlayers(){
         '<button class="btn btn-sm" data-act="toggle">' +
           (p.active === false ? 'Réactiver' : 'Suspendre') + '</button>' +
         '<button class="btn btn-sm btn-dng" data-act="del">Supprimer</button>' +
-      '</div></div>').join('');
+      '</div></div>';
+  }).join('');
 }
 
 document.getElementById('p-list').addEventListener('click', async ev => {
@@ -664,9 +698,8 @@ document.getElementById('p-list').addEventListener('click', async ev => {
     if (act === 'issue' || act === 'grant' || act === 'reclaim'){
       const n = Math.round(Number(q('.f-qty').value)||0);
       if (n <= 0){ alert('Indique un nombre de parts.'); return; }
-      const label = q('.f-lb').value;
       const fn = act === 'issue' ? issueShares : act === 'grant' ? grantShares : reclaimShares;
-      const r = await fn(pid, n, label || undefined);
+      const r = await fn(pid, n, q('.f-lb').value || undefined);
       if (!r.ok) alert(r.error);
       else { q('.f-qty').value = ''; q('.f-lb').value = ''; }
     }
@@ -684,7 +717,7 @@ document.getElementById('p-list').addEventListener('click', async ev => {
     else if (act === 'toggle') await ref.update({ active: p.active === false });
     else if (act === 'del'){
       if (!confirm('Supprimer le dossier de ' + (p.pseudo||pid) + ' ?\n\n' +
-        'Ses ' + num(p.shares) + ' parts disparaissent du registre : pense à les reprendre d’abord ' +
+        'Ses ' + num(held(p)) + ' parts disparaissent du registre : reprends-les d’abord ' +
         'si tu veux garder la comptabilité juste.')) return;
       await ref.delete();
       await db.collection(COL.ballots).doc(pid).delete().catch(()=>{});
@@ -702,12 +735,18 @@ function parseOptions(txt){
     return { id: slugify(label) || ('opt' + (i+1)), label, desc: desc || '' };
   });
 }
+const toLocalInput = ms => {
+  const d = new Date(Number(ms) - new Date().getTimezoneOffset()*60000);
+  return d.toISOString().slice(0,16);
+};
 
 function fillVote(){
   if (!VOTE) return;
   const st = document.getElementById('v-st');
-  st.textContent = VOTE.status === 'open' ? 'ouvert' : VOTE.status === 'closed' ? 'clos' : 'brouillon';
-  st.className = 'bdg ' + (VOTE.status === 'open' ? 'bdg-ok' : VOTE.status === 'closed' ? 'bdg-dng' : '');
+  const lbl = { draft:'brouillon', announced:'annoncé', open:'ouvert', closed:'clos' };
+  const cls = { draft:'', announced:'bdg-warn', open:'bdg-ok', closed:'bdg-dng' };
+  st.textContent = lbl[VOTE.status] || '—';
+  st.className   = 'bdg ' + (cls[VOTE.status] || '');
   // On ne réécrit les champs que s'ils sont vides (ne pas écraser une saisie en cours)
   const q = document.getElementById('v-q');
   if (!q.value){
@@ -715,134 +754,172 @@ function fillVote(){
     document.getElementById('v-d').value = VOTE.detail || '';
     document.getElementById('v-opts').value = (VOTE.options||[])
       .map(o => o.label + (o.desc ? ';' + o.desc : '')).join('\n');
-    if (VOTE.closesAt){
-      const d = new Date(Number(VOTE.closesAt) - new Date().getTimezoneOffset()*60000);
-      document.getElementById('v-close').value = d.toISOString().slice(0,16);
-    }
+    if (VOTE.opensAt)  document.getElementById('v-open-at').value = toLocalInput(VOTE.opensAt);
+    if (VOTE.closesAt) document.getElementById('v-close').value   = toLocalInput(VOTE.closesAt);
   }
 }
 
 function voteDraft(){
-  const closeRaw = document.getElementById('v-close').value;
+  const o = document.getElementById('v-open-at').value;
+  const c = document.getElementById('v-close').value;
   return {
     question: document.getElementById('v-q').value.trim(),
     detail:   document.getElementById('v-d').value.trim(),
     options:  parseOptions(document.getElementById('v-opts').value),
-    closesAt: closeRaw ? new Date(closeRaw).getTime() : null
+    opensAt:  o ? new Date(o).getTime() : null,
+    closesAt: c ? new Date(c).getTime() : null
   };
 }
 
-document.getElementById('v-save').addEventListener('click', async () => {
+async function saveVote(status, confirmMsg){
   const d = voteDraft();
   say('v-msg','');
   if (!d.question){ say('v-msg','Il faut une question.','err'); return; }
+  if (status !== VOTE_STATUS.draft && d.options.length < 2){
+    say('v-msg','Il faut au moins deux options.','err'); return;
+  }
+  if (confirmMsg && !confirm(confirmMsg)) return;
   try{
-    await db.collection(COL.vote).doc('current').set(
-      Object.assign(d, { status: (VOTE && VOTE.status) || 'draft' }), { merge:true });
-    say('v-msg','Brouillon enregistré. Les actionnaires ne voient rien tant qu’il n’est pas ouvert.','ok');
+    const payload = Object.assign({}, d, { status });
+    if (status === VOTE_STATUS.open) payload.openedAt = Date.now();
+    await db.collection(COL.vote).doc('current').set(payload, { merge:true });
+    const said = { draft:'Brouillon enregistré. Invisible des actionnaires.',
+                   announced:'Annoncé. La question est visible, le vote reste fermé.',
+                   open:'Scrutin ouvert. Les actionnaires peuvent convertir leurs parts.' };
+    say('v-msg', said[status] || 'Enregistré.', 'ok');
   }catch(e){ say('v-msg', e.message, 'err'); }
-});
+}
 
-document.getElementById('v-open').addEventListener('click', async () => {
-  const d = voteDraft();
-  say('v-msg','');
-  if (!d.question){ say('v-msg','Il faut une question.','err'); return; }
-  if (d.options.length < 2){ say('v-msg','Il faut au moins deux options.','err'); return; }
-  const was = VOTE && VOTE.status === 'closed';
-  if (!confirm(was
-      ? 'Réouvrir le scrutin ? Le résultat publié sera effacé (les bulletins sont conservés).'
-      : 'Ouvrir le scrutin ? Les ' + PLAYERS.length + ' actionnaires pourront voter.')) return;
-  try{
-    await db.collection(COL.vote).doc('current').set(Object.assign(d, {
-      status:'open', openedAt: Date.now(),
-      results: firebase.firestore.FieldValue.delete()
-    }), { merge:true });
-    say('v-msg','Scrutin ouvert.','ok');
-  }catch(e){ say('v-msg', e.message, 'err'); }
+document.getElementById('v-save').addEventListener('click',
+  () => saveVote((VOTE && VOTE.status) || VOTE_STATUS.draft));
+
+document.getElementById('v-announce').addEventListener('click',
+  () => saveVote(VOTE_STATUS.announced,
+    'Annoncer la question à tous les actionnaires ?\n\n' +
+    'Ils verront la décision et les options, mais ne pourront pas encore voter.'));
+
+document.getElementById('v-go').addEventListener('click', () => {
+  if (VOTE && VOTE.status === VOTE_STATUS.closed){
+    say('v-msg','Le scrutin est déjà dépouillé et les parts ont été rendues. ' +
+      'Pour rejouer, utilise « Effacer les bulletins et repasser en brouillon ».','err');
+    return;
+  }
+  saveVote(VOTE_STATUS.open,
+    'Ouvrir le scrutin ?\n\nLes ' + actifs().length + ' actionnaires pourront échanger ' +
+    'leurs parts en banque contre des voix. Un seul passage chacun, définitif.');
 });
 
 document.getElementById('v-tally').addEventListener('click', async () => {
   say('v-msg','');
-  if (!VOTE || VOTE.status === 'draft'){ say('v-msg','Aucun scrutin ouvert.','err'); return; }
-  const act = PLAYERS.filter(p => p.active !== false);
+  if (!VOTE || VOTE.status === VOTE_STATUS.draft || VOTE.status === VOTE_STATUS.announced){
+    say('v-msg','Aucun scrutin ouvert.','err'); return;
+  }
+  const act = actifs();
   const voted = Object.keys((VOTE.voted)||{}).length;
   if (!confirm('Clore et dépouiller ?\n\n' + voted + ' votant(s) sur ' + act.length + '.\n' +
-    'Les jetons encore dehors (' + num(TRES.circulating) + ') ne compteront pas.')) return;
+    num(TRES.circulating) + ' parts sont encore dehors en jetons : elles ne compteront pas.\n\n' +
+    'Les parts engagées seront rendues aux comptes.')) return;
   const btn = document.getElementById('v-tally');
-  btn.disabled = true;
+  btn.disabled = true; btn.textContent = 'Dépouillement…';
   const r = await tallyVote();
-  btn.disabled = false;
+  btn.disabled = false; btn.textContent = '◻ Clore et dépouiller';
   say('v-msg', r.ok
-    ? 'Dépouillé : ' + r.voters + ' bulletins, ' + num(r.expressed) + ' parts exprimées.'
+    ? 'Dépouillé : ' + r.voters + ' bulletins, ' + num(r.expressed) + ' voix exprimées. ' +
+      num(r.released) + ' parts rendues aux comptes.'
     : r.error, r.ok ? 'ok' : 'err');
 });
 
+document.getElementById('v-reset').addEventListener('click', async () => {
+  if (!confirm('Effacer TOUS les bulletins et repasser en brouillon ?\n\n' +
+    'Les parts engagées sont rendues. Les parts détenues et le grand livre ne bougent pas.')) return;
+  const b = document.getElementById('v-reset');
+  b.disabled = true;
+  const r = await resetVote();
+  b.disabled = false;
+  say('v-msg', r.ok ? 'Scrutin remis à zéro.' : r.error, r.ok ? 'ok' : 'err');
+});
+
 function renderVoteAdmin(){
-  const box = document.getElementById('v-part');
-  const resP = document.getElementById('v-res-pnl');
-  if (!VOTE || VOTE.status === 'draft' || !VOTE.status){
-    box.innerHTML = '<div class="empty">Aucun scrutin ouvert.</div>';
-    resP.style.display = 'none';
+  const live = document.getElementById('v-live');
+  const part = document.getElementById('v-part');
+  const st = VOTE && VOTE.status;
+
+  if (!st || st === VOTE_STATUS.draft){
+    live.innerHTML = '<div class="empty">Aucun scrutin publié.</div>';
+    part.innerHTML = '<div class="empty">Aucun scrutin publié.</div>';
     return;
   }
-  const voted = VOTE.voted || {};
-  const act = PLAYERS.filter(p => p.active !== false);
-  const yes = act.filter(p => voted[p.id]), no = act.filter(p => !voted[p.id]);
-  const acc = onAccounts();
-  const repr = yes.reduce((s,p) => s + (Number(p.shares)||0), 0);
-  box.innerHTML =
+  if (st === VOTE_STATUS.announced){
+    live.innerHTML = '<div class="empty">Scrutin annoncé, pas encore ouvert.' +
+      (VOTE.opensAt ? '<br>Ouverture ' + esc(whenLong(VOTE.opensAt)) +
+        ' — dans <strong>' + esc(countdown(VOTE.opensAt)) + '</strong>.' : '') + '</div>';
+    part.innerHTML = '<div class="empty">Personne ne peut encore voter.</div>';
+    return;
+  }
+
+  /* ---- décompte en direct, d'après les bulletins ---- */
+  const byOption = {};
+  (VOTE.options||[]).forEach(o => { byOption[o.id] = { label:o.label, shares:0, voters:0 }; });
+  let expressed = 0;
+  BALLOTS.forEach(b => {
+    for (const k in (b.alloc||{})){
+      const n = Number(b.alloc[k])||0;
+      if (!n || !byOption[k]) continue;
+      byOption[k].shares += n; byOption[k].voters += 1; expressed += n;
+    }
+  });
+  const ranked = Object.keys(byOption).map(id => Object.assign({ id }, byOption[id]))
+    .sort((a,b) => b.shares - a.shares);
+  const max = Math.max(1, ...ranked.map(o => o.shares));
+  const leadTie = ranked.length > 1 && ranked[0].shares === ranked[1].shares && ranked[0].shares > 0;
+
+  live.innerHTML =
+    (st === VOTE_STATUS.closed
+      ? '<p class="mini">Scrutin clos ' + esc(when(VOTE.closedAt)) + '. Résultat définitif.</p>'
+      : '<div class="msg msg-err" style="margin-bottom:12px">Décompte provisoire, visible ' +
+        'de la direction seulement. Les actionnaires ne voient que la participation.</div>') +
+    ranked.map(o => {
+      const win = ranked[0].shares > 0 && o.id === ranked[0].id && !leadTie;
+      return '<div class="res' + (win ? ' res-win' : '') + '">' +
+        '<div class="res-h"><span class="res-t">' + (win ? '★ ' : '') + esc(o.label || o.id) +
+        '</span><span class="res-v">' + voix(o.shares) + ' · ' + pctOf(o.shares, expressed||1) +
+        '</span></div><div class="res-bar"><i style="width:' + (o.shares/max*100).toFixed(1) +
+        '%"></i></div><div class="lst-s" style="margin-top:3px">' + num(o.voters) +
+        ' actionnaire' + (o.voters>1?'s':'') + '</div></div>';
+    }).join('') +
+    (leadTie ? '<div class="msg msg-err">Égalité en tête.</div>' : '') +
+    '<p class="mini">' + voix(expressed) + ' exprimées · ' + BALLOTS.length + ' bulletin(s)' +
+      (VOTE.closesAt && st === VOTE_STATUS.open
+        ? ' · clôture dans <strong>' + esc(countdown(VOTE.closesAt)) + '</strong>' : '') + '</p>';
+
+  /* ---- participation ---- */
+  const voted = (VOTE.voted) || {};
+  const act = actifs();
+  const ids = Object.keys(voted);
+  const engaged = ids.reduce((s,k) => s + (Number(voted[k])||0), 0);
+  const pending = act.filter(p => !(p.id in voted));
+  const stillAvail = act.reduce((s,p) => s + (Number(p.shares)||0), 0);
+  part.innerHTML =
     '<div class="stat-grid">' +
-      '<div class="stat"><div class="stat-v">' + yes.length + '<span style="font-size:.6em;color:var(--td)">/' +
-        act.length + '</span></div><div class="stat-l">Votants</div></div>' +
-      '<div class="stat"><div class="stat-v gold sm">' + pctOf(repr, acc||1) +
-        '</div><div class="stat-l">Capital exprimé</div></div>' +
-      '<div class="stat"><div class="stat-v sm gold">' + num(TRES.circulating) +
+      '<div class="stat"><div class="stat-v">' + ids.length +
+        '<span style="font-size:.6em;color:var(--td)">/' + act.length + '</span></div>' +
+        '<div class="stat-l">Votants</div></div>' +
+      '<div class="stat"><div class="stat-v vio sm">' + num(engaged) +
+        '</div><div class="stat-l">Voix déposées</div></div>' +
+      '<div class="stat"><div class="stat-v sm plain">' + num(stillAvail) +
+        '</div><div class="stat-l">Parts encore en banque</div></div>' +
+      '<div class="stat"><div class="stat-v gold sm">' + num(TRES.circulating) +
         '</div><div class="stat-l">Jetons dehors</div></div>' +
     '</div>' +
-    (VOTE.closesAt ? '<p class="mini">Clôture dans <strong>' + esc(countdown(VOTE.closesAt)) +
-      '</strong> (' + esc(when(VOTE.closesAt)) + ')</p>' : '') +
-    (no.length
-      ? '<hr class="hr"><h3 style="margin:0 0 7px">N’ont pas voté (' + no.length + ')</h3>' +
+    (pending.length
+      ? '<hr class="hr"><h3 style="margin:0 0 7px">N’ont pas voté (' + pending.length + ')</h3>' +
         '<p style="margin:0;color:var(--td);font-size:.9rem">' +
-        no.map(p => esc(p.pseudo||p.id) + ' <span class="lst-s">(' + num(p.shares) + ')</span>').join(' · ') +
-        '</p>'
+        pending.sort((a,b) => (Number(b.shares)||0) - (Number(a.shares)||0))
+          .map(p => esc(p.pseudo||p.id) + ' <span class="lst-s">(' + num(p.shares) + ')</span>')
+          .join(' · ') + '</p>' +
+        '<p class="mini">Tri&eacute;s par parts en banque : les premiers sont ceux qu’il faut aller chercher.</p>'
       : '<p class="mini" style="color:var(--ac)">Tout le monde a voté.</p>');
-
-  const R = VOTE.results;
-  if (VOTE.status === 'closed' && R){
-    resP.style.display = '';
-    const max = Math.max(1, ...(R.ranked||[]).map(o => o.shares));
-    document.getElementById('v-res').innerHTML =
-      (R.ranked||[]).map(o => {
-        const win = R.winnerId === o.id;
-        return '<div class="res' + (win ? ' res-win' : '') + '">' +
-          '<div class="res-h"><span class="res-t">' + (win ? '★ ' : '') + esc(o.label || o.id) +
-          '</span><span class="res-v">' + num(o.shares) + ' · ' + pctOf(o.shares, R.expressed||1) +
-          '</span></div><div class="res-bar"><i style="width:' + (o.shares/max*100).toFixed(1) +
-          '%"></i></div><div class="lst-s" style="margin-top:3px">' + num(o.voters) +
-          ' actionnaire' + (o.voters>1?'s':'') + '</div></div>';
-      }).join('') +
-      (R.tie ? '<div class="msg msg-err">Égalité parfaite.</div>' : '') +
-      '<p class="mini">' + num(R.expressed) + ' parts exprimées sur ' + num(R.onAccounts) +
-      ' en banque · ' + num(R.voters) + ' votants' +
-      (R.voidBallots ? ' · ' + num(R.voidBallots) + ' nul(s)' : '') +
-      ' · dépouillé ' + esc(when(R.ts)) + '</p>';
-  } else resP.style.display = 'none';
 }
-
-document.getElementById('rz-ballots').addEventListener('click', async () => {
-  if (!confirm('Effacer TOUS les bulletins et remettre le scrutin à zéro ?')) return;
-  try{
-    const bs = await db.collection(COL.ballots).get();
-    await Promise.all(bs.docs.map(d => d.ref.delete()));
-    await db.collection(COL.vote).doc('current').set({
-      status:'draft',
-      voted:  firebase.firestore.FieldValue.delete(),
-      results:firebase.firestore.FieldValue.delete()
-    }, { merge:true });
-    alert('Bulletins effacés.');
-  }catch(e){ alert(e.message); }
-});
 
 /* ============================================================
    Magasin
@@ -940,8 +1017,9 @@ document.getElementById('o-list').addEventListener('click', async ev => {
 });
 
 const MV_LABEL = {
-  transfer:'Virement', withdraw:'Retrait', deposit:'Dépôt',
-  issue:'Émission', grant:'Attribution', reclaim:'Reprise', shop:'Achat'
+  transfer:'Cession', withdraw:'Retrait', deposit:'Dépôt', issue:'Émission',
+  grant:'Attribution', reclaim:'Reprise', shop:'Achat',
+  vote:'Vote', release:'Parts rendues'
 };
 function renderLedger(rows){
   const box = document.getElementById('l-list');

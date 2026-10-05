@@ -7,14 +7,24 @@
    -------------
    Une PART existe sous deux formes :
      · dematerialisee — « en banque », sur le compte du joueur. Seule forme
-       que l'app connait : elle paie dans l'app, elle se vire, elle VOTE.
+       que l'app connait : elle paie dans l'app, elle se cede, elle VOTE.
      · au porteur — un jeton physique. Invisible de l'app, par construction :
        il circule de main en main sans laisser de trace.
    Le GUICHET de l'organisation est le seul point de conversion entre les deux
    (retrait = compte -> jeton, depot = jeton -> compte).
 
-   CONSEQUENCE, assumee : seules les parts EN BANQUE votent. Un jeton dans une
-   poche ne peut pas etre compte. D'ou l'heure limite de depot avant scrutin.
+   CONSEQUENCE, assumee : seules les parts EN BANQUE peuvent etre converties en
+   voix. Un jeton dans une poche ne vaut rien au scrutin. D'ou l'heure limite de
+   depot au guichet avant la cloture.
+
+   LE SCRUTIN est un EVENEMENT (le dimanche matin). Au moment du vote, chacun
+   ECHANGE des parts de son compte contre des voix : 1 part = 1 voix.
+     · il REPARTIT librement entre les options (7 pour A, 3 pour B) ;
+     · il ne passe QU'UNE SEULE FOIS : le bulletin est definitif ;
+     · les parts engagees sont BLOQUEES (champ `engaged`), puis RENDUES au
+       depouillement. Elles ne sont pas depensees.
+   Le blocage n'est pas cosmetique : sans lui, on voterait avec 10 parts puis on
+   les cederait a quelqu'un qui revoterait avec les memes.
    ============================================================ */
 
 firebase.initializeApp(window.firebaseConfig);
@@ -22,10 +32,10 @@ const db = firebase.firestore();
 
 /* ---------- Collections ---------- */
 const COL = {
-  players:  'players',    // /players/{slug}      fiche actionnaire (shares = parts en banque)
+  players:  'players',    // /players/{slug}      compte (shares = en banque, engaged = au vote)
   ledger:   'ledger',     // /ledger/{auto}       un mouvement de parts
   requests: 'requests',   // /requests/{auto}     demande de retrait/depot au guichet
-  ballots:  'ballots',    // /ballots/{playerId}  bulletin de vote
+  ballots:  'ballots',    // /ballots/{playerId}  bulletin : { alloc:{optId:n}, total }
   orders:   'orders',     // /orders/{auto}       commande magasin
   shop:     'shop',       // /shop/catalog        { items:[...] }
   journal:  'journal',    // /journal/public      { entries:[...] }
@@ -42,19 +52,31 @@ const MV = {
   issue:    'issue',      // creation de parts nouvelles (dilution)
   grant:    'grant',      // tresorerie de la compagnie -> actionnaire
   reclaim:  'reclaim',    // actionnaire -> tresorerie de la compagnie
-  shop:     'shop'        // actionnaire -> compagnie, en paiement
+  shop:     'shop',       // actionnaire -> compagnie, en paiement
+  vote:     'vote',       // compte -> parts engagees au scrutin
+  release:  'release'     // parts engagees rendues au compte
 };
 
 /* Contreparties qui ne sont pas des joueurs */
 const PARTY = {
   company:  '__company__',    // tresorerie de la compagnie
   tokens:   '__tokens__',     // les jetons en circulation (hors app)
-  issuance: '__issuance__'    // le neant d'ou sortent les parts nouvelles
+  issuance: '__issuance__',   // le neant d'ou sortent les parts nouvelles
+  urn:      '__urn__'         // les parts engagees au scrutin
 };
 const PARTY_NAME = {
   __company__:  'Trésorerie',
   __tokens__:   'Jetons en circulation',
-  __issuance__: 'Émission'
+  __issuance__: 'Émission',
+  __urn__:      'Scrutin'
+};
+
+/* Etats du scrutin */
+const VOTE_STATUS = {
+  draft:     'draft',      // invisible des actionnaires
+  announced: 'announced',  // question + heure d'ouverture visibles, vote impossible
+  open:      'open',       // conversion des parts en voix possible
+  closed:    'closed'      // depouille, resultats publies
 };
 
 /* ---------- Reglages de partie ---------- */
@@ -94,7 +116,10 @@ function parts(n){
   return num(v) + ' ' + (Math.abs(v) === 1 ? (GAME.unit||'part') : (GAME.units||'parts'));
 }
 
-/** Part du capital emis, en pourcentage lisible. */
+/** 1 -> « 1 voix » ; 12 -> « 12 voix » (invariable). */
+function voix(n){ return num(n) + ' voix'; }
+
+/** Part d'un total, en pourcentage lisible. */
 function pctOf(n, total){
   const t = Number(total)||0;
   if (!t) return '—';
@@ -110,7 +135,15 @@ function when(ts){
     { weekday:'short', hour:'2-digit', minute:'2-digit' });
 }
 
-/** Duree restante lisible : « 3 h 12 min », « 4 min », « terminé ». */
+/** « dimanche 9:00 » — pour annoncer l'ouverture du scrutin. */
+function whenLong(ts){
+  const ms = Number(ts)||0;
+  if (!ms) return '—';
+  return new Date(ms).toLocaleString('fr-FR',
+    { weekday:'long', hour:'2-digit', minute:'2-digit' });
+}
+
+/** Duree restante lisible : « 3 h 12 », « 4 min », « délai écoulé ». */
 function countdown(toMs){
   const d = Number(toMs) - Date.now();
   if (!toMs || isNaN(d)) return '';
@@ -123,6 +156,12 @@ function countdown(toMs){
 /** Nom affichable d'une contrepartie de mouvement. */
 function partyName(id, fallback){
   return PARTY_NAME[id] || fallback || id || '?';
+}
+
+/** Parts totales detenues par un actionnaire : en banque + engagees au vote. */
+function held(p){
+  if (!p) return 0;
+  return (Number(p.shares)||0) + (Number(p.engaged)||0);
 }
 
 /** Affiche un message dans un conteneur (type 'ok' | 'err'). */
@@ -190,11 +229,13 @@ function requireSession(){
    TRESORERIE — /config/treasury = { issued, circulating, company }
 
    Invariant comptable :
-       issued  =  somme des comptes  +  circulating  +  company
+       issued  =  somme de (shares + engaged)  +  circulating  +  company
 
    · issued      parts existantes (le capital)
    · circulating parts sorties en jetons physiques, hors de l'app
    · company     parts detenues par la compagnie (ne votent pas)
+   Les parts `engaged` appartiennent toujours au joueur : elles sont bloquees
+   le temps du scrutin, pas depensees.
    ============================================================ */
 const treasuryRef = () => db.collection(COL.config).doc('treasury');
 
@@ -219,13 +260,13 @@ function ledgerEntry(tx, entry){
 }
 
 /**
- * Coeur de toute la comptabilite : une operation atomique sur le compte d'UN
+ * Coeur de la comptabilite : une operation atomique sur le compte d'UN
  * actionnaire et sur la tresorerie.
  *
  * @param {string} playerId
- * @param {number} dShares  variation du compte du joueur (signee)
+ * @param {number} dShares  variation du compte (signee)
  * @param {object} dTres    variation de la tresorerie, ex. { circulating:+5 }
- * @param {object} entry    ligne de grand livre (type, label, from/to...)
+ * @param {object} entry    ligne de grand livre
  */
 async function shareOp(playerId, dShares, dTres, entry){
   const pRef = db.collection(COL.players).doc(playerId);
@@ -236,7 +277,7 @@ async function shareOp(playerId, dShares, dTres, entry){
       if (!ps.exists) throw new Error('Actionnaire introuvable.');
       const cur  = Number(ps.data().shares)||0;
       const next = cur + dShares;
-      if (next < 0) throw new Error('Solde de parts insuffisant.');
+      if (next < 0) throw new Error('Parts en banque insuffisantes.');
 
       const t = ts.exists ? ts.data() : {};
       const tNext = {
@@ -259,11 +300,11 @@ async function shareOp(playerId, dShares, dTres, entry){
   }catch(e){ return { ok:false, error: e.message || 'Opération refusée.' }; }
 }
 
-/* ---------- Virement entre actionnaires (en banque) ---------- */
+/* ---------- Cession entre actionnaires (en banque) ---------- */
 async function transferShares(fromId, toId, qty, label){
   const n = Math.round(Number(qty)||0);
-  if (n <= 0)        return { ok:false, error:'Nombre de parts invalide.' };
-  if (fromId === toId) return { ok:false, error:'Tu ne peux pas te virer des parts à toi-même.' };
+  if (n <= 0)          return { ok:false, error:'Nombre de parts invalide.' };
+  if (fromId === toId) return { ok:false, error:'Tu ne peux pas te céder des parts à toi-même.' };
   const fromRef = db.collection(COL.players).doc(fromId);
   const toRef   = db.collection(COL.players).doc(toId);
   try{
@@ -279,11 +320,11 @@ async function transferShares(fromId, toId, qty, label){
         type: MV.transfer, shares: n,
         from: fromId, fromName: fs.data().pseudo || fromId,
         to:   toId,   toName:   ts.data().pseudo || toId,
-        label: String(label||'Virement de parts').slice(0,120)
+        label: String(label||'Cession de parts').slice(0,120)
       });
     });
     return { ok:true };
-  }catch(e){ return { ok:false, error: e.message || 'Virement refusé.' }; }
+  }catch(e){ return { ok:false, error: e.message || 'Cession refusée.' }; }
 }
 
 /* ---------- Guichet : compte <-> jetons physiques ---------- */
@@ -391,7 +432,6 @@ async function purchase(playerId, itemId, qty){
 }
 
 /* ---------- Guichet : demandes des joueurs ---------- */
-/** Le joueur fait la queue depuis son telephone ; l'orga valide d'un clic. */
 async function fileRequest(playerId, playerName, kind, qty){
   const n = Math.round(Number(qty)||0);
   if (n <= 0) return { ok:false, error:'Nombre de jetons invalide.' };
@@ -410,33 +450,66 @@ async function fileRequest(playerId, playerName, kind, qty){
 /* ============================================================
    SCRUTIN — /vote/current + /ballots/{playerId}
 
-   Le bulletin vit dans son propre document : la page joueur ne lit que le
-   sien, pas ceux des autres. Le document /vote/current ne porte que la liste
-   de QUI a vote (jamais quoi) -> quorum en direct, et la chasse aux
-   abstentionnistes en fin de week-end.
+   Cycle : draft -> announced -> open -> closed
 
-   Le POIDS est calcule au depouillement, d'apres les parts EN BANQUE a cet
-   instant. Acheter des parts apres avoir vote augmente donc son poids ; en
-   ceder le diminue. Le total reste conserve : pas de double compte.
+   Le bulletin vit dans son propre document : la page joueur ne lit que le
+   sien. /vote/current.voted[playerId] ne porte que le NOMBRE de parts
+   engagees — jamais la repartition. Qui a vote et combien il pese est public ;
+   pour quoi il a vote ne l'est pas, jusqu'au depouillement.
    ============================================================ */
 const voteRef = () => db.collection(COL.vote).doc('current');
 
-/** Enregistre (ou change) le bulletin d'un actionnaire. */
-async function castBallot(playerId, playerName, optionId){
-  try{
-    const vs = await voteRef().get();
-    if (!vs.exists || vs.data().status !== 'open')
-      return { ok:false, error:'Le scrutin n’est pas ouvert.' };
-    const v = vs.data();
-    if (v.closesAt && Date.now() > Number(v.closesAt))
-      return { ok:false, error:'Le scrutin est clos.' };
-    if (!(v.options||[]).some(o => o.id === optionId))
-      return { ok:false, error:'Option inconnue.' };
+/**
+ * Convertit des parts en voix. UN SEUL passage : definitif.
+ * @param {object} alloc  { optionId: nombre de parts }  (repartition libre)
+ */
+async function castBallot(playerId, playerName, alloc){
+  const clean = {}; let total = 0;
+  for (const k in (alloc||{})){
+    const n = Math.max(0, Math.round(Number(alloc[k])||0));
+    if (n > 0){ clean[k] = n; total += n; }
+  }
+  if (total <= 0) return { ok:false, error:'Engage au moins une part.' };
 
-    await db.collection(COL.ballots).doc(playerId)
-      .set({ playerId, playerName, optionId, ts: Date.now() });
-    const flag = {}; flag['voted.' + playerId] = true;
-    await voteRef().update(flag);
+  const pRef = db.collection(COL.players).doc(playerId);
+  const bRef = db.collection(COL.ballots).doc(playerId);
+  const vRef = voteRef();
+  try{
+    await db.runTransaction(async tx => {
+      const [ps, bs, vs] = await Promise.all([tx.get(pRef), tx.get(bRef), tx.get(vRef)]);
+      if (!ps.exists) throw new Error('Compte introuvable.');
+      if (!vs.exists || vs.data().status !== VOTE_STATUS.open)
+        throw new Error('Le scrutin n’est pas ouvert.');
+      const v = vs.data();
+      if (v.closesAt && Date.now() > Number(v.closesAt))
+        throw new Error('Le scrutin est clos.');
+      // Un seul passage : c'est la regle, et c'est ici qu'elle tient.
+      if (bs.exists) throw new Error('Tu as déjà voté. Le bulletin est définitif.');
+
+      const ids = {}; (v.options||[]).forEach(o => { ids[o.id] = true; });
+      for (const k in clean) if (!ids[k]) throw new Error('Option inconnue au scrutin.');
+
+      const avail = Number(ps.data().shares)||0;
+      if (total > avail)
+        throw new Error('Tu n’as que ' + avail + ' part(s) en banque. ' +
+                        'Dépose tes jetons au guichet pour en convertir plus.');
+
+      // Les parts sortent du compte et sont BLOQUEES : on ne peut plus les
+      // ceder a quelqu'un qui revoterait avec les memes.
+      tx.update(pRef, {
+        shares:  avail - total,
+        engaged: (Number(ps.data().engaged)||0) + total
+      });
+      tx.set(bRef, { playerId, playerName, alloc: clean, total, ts: Date.now() });
+      const upd = {}; upd['voted.' + playerId] = total;   // le poids, pas le detail
+      tx.update(vRef, upd);
+      ledgerEntry(tx, {
+        type: MV.vote, shares: total,
+        from: playerId, fromName: playerName || playerId,
+        to: PARTY.urn, toName: PARTY_NAME.__urn__,
+        label: 'Conversion en ' + total + ' voix'
+      });
+    });
     return { ok:true };
   }catch(e){ return { ok:false, error: e.message || 'Vote refusé.' }; }
 }
@@ -450,8 +523,8 @@ async function myBallot(playerId){
 }
 
 /**
- * Depouillement (organisation). Croise les bulletins avec les parts EN BANQUE
- * du moment, ecrit le resultat dans /vote/current.results et clot le scrutin.
+ * Depouillement : additionne les voix allouees, publie le resultat, puis
+ * REND a chaque actionnaire ses parts engagees.
  */
 async function tallyVote(){
   try{
@@ -462,45 +535,98 @@ async function tallyVote(){
       db.collection(COL.ballots).get(),
       db.collection(COL.players).get()
     ]);
-    const shares = {};
-    ps.docs.forEach(d => {
-      const x = d.data();
-      if (x.active !== false) shares[d.id] = Number(x.shares)||0;
-    });
+
+    const active = {};
+    ps.docs.forEach(d => { if (d.data().active !== false) active[d.id] = true; });
 
     const byOption = {};
     (v.options||[]).forEach(o => { byOption[o.id] = { label:o.label, shares:0, voters:0 }; });
-    let counted = 0, voidBallots = 0;
+
+    let voters = 0, voidShares = 0, voidBallots = 0;
     bs.docs.forEach(d => {
       const b = d.data();
-      const slot = byOption[b.optionId];
-      if (!slot){ voidBallots++; return; }            // option supprimee depuis
-      if (!(b.playerId in shares)){ voidBallots++; return; }  // compte suspendu/supprime
-      slot.shares += shares[b.playerId];
-      slot.voters += 1;
-      counted++;
+      if (!active[b.playerId]){ voidBallots++; return; }   // compte suspendu/supprime
+      let counted = false;
+      for (const k in (b.alloc||{})){
+        const n = Math.max(0, Math.round(Number(b.alloc[k])||0));
+        if (!n) continue;
+        if (byOption[k]){ byOption[k].shares += n; byOption[k].voters += 1; counted = true; }
+        else voidShares += n;                              // option supprimee depuis
+      }
+      if (counted) voters++; else voidBallots++;
     });
 
-    const onAccounts = Object.values(shares).reduce((a,b) => a+b, 0);
-    const expressed  = Object.values(byOption).reduce((a,o) => a + o.shares, 0);
+    const expressed = Object.keys(byOption).reduce((a,k) => a + byOption[k].shares, 0);
     const ranked = Object.keys(byOption)
       .map(id => Object.assign({ id }, byOption[id]))
       .sort((a,b) => b.shares - a.shares);
-    const winner = ranked.length && ranked[0].shares > 0
-      ? (ranked[1] && ranked[1].shares === ranked[0].shares ? null : ranked[0])
-      : null;
+    const tie = !!(ranked.length > 1 && ranked[0].shares === ranked[1].shares && ranked[0].shares > 0);
+    const winner = (ranked.length && ranked[0].shares > 0 && !tie) ? ranked[0] : null;
 
     await voteRef().set({
-      status: 'closed',
+      status: VOTE_STATUS.closed,
       closedAt: Date.now(),
       results: {
-        byOption, ranked, expressed, onAccounts,
-        voters: counted, voidBallots,
+        byOption, ranked, expressed,
+        voters, voidShares, voidBallots,
         winnerId: winner ? winner.id : null,
-        tie: !!(ranked.length > 1 && ranked[0].shares === ranked[1].shares && ranked[0].shares > 0),
-        ts: Date.now()
+        tie, ts: Date.now()
       }
     }, { merge:true });
-    return { ok:true, voters: counted, expressed };
+
+    const rel = await releaseEngaged();
+    return { ok:true, voters, expressed, released: rel.released };
   }catch(e){ return { ok:false, error: e.message || 'Dépouillement impossible.' }; }
+}
+
+/**
+ * Rend a chaque actionnaire ses parts engagees (shares += engaged, engaged = 0).
+ * Idempotent : relancable sans risque si une execution a ete interrompue.
+ */
+async function releaseEngaged(){
+  try{
+    const ps = await db.collection(COL.players).get();
+    const todo = ps.docs.filter(d => (Number(d.data().engaged)||0) > 0);
+    if (!todo.length) return { ok:true, released:0 };
+    // Un lot par tranche de 450 ecritures (limite Firestore : 500 par lot).
+    let released = 0;
+    for (let i = 0; i < todo.length; i += 225){
+      const batch = db.batch();
+      todo.slice(i, i+225).forEach(d => {
+        const n = Number(d.data().engaged)||0;
+        batch.update(d.ref, { shares: (Number(d.data().shares)||0) + n, engaged: 0 });
+        batch.set(db.collection(COL.ledger).doc(), {
+          type: MV.release, shares: n, ts: Date.now(),
+          from: PARTY.urn, fromName: PARTY_NAME.__urn__,
+          to: d.id, toName: d.data().pseudo || d.id,
+          label: 'Parts rendues après le scrutin'
+        });
+        released += n;
+      });
+      await batch.commit();
+    }
+    return { ok:true, released };
+  }catch(e){ return { ok:false, error: e.message }; }
+}
+
+/**
+ * Remet le scrutin a zero : efface les bulletins, rend les parts engagees,
+ * repasse en brouillon. Pour rejouer un scrutin.
+ */
+async function resetVote(){
+  try{
+    await releaseEngaged();
+    const bs = await db.collection(COL.ballots).get();
+    for (let i = 0; i < bs.docs.length; i += 450){
+      const batch = db.batch();
+      bs.docs.slice(i, i+450).forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+    await voteRef().set({
+      status:  VOTE_STATUS.draft,
+      voted:   firebase.firestore.FieldValue.delete(),
+      results: firebase.firestore.FieldValue.delete()
+    }, { merge:true });
+    return { ok:true };
+  }catch(e){ return { ok:false, error: e.message }; }
 }

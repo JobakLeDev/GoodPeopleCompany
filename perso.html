@@ -36,11 +36,13 @@
     <div class="wallet-cur" id="w-unit">parts</div>
     <div class="wallet-pct" id="w-pct"></div>
   </div>
+  <div id="w-engaged"></div>
 
   <div class="tok-note">
     <span class="ic">&#9888;</span>
-    <div><strong>Seules les parts en banque votent.</strong> Un jeton dans ta poche
-    ne compte pas au scrutin&nbsp;: il faut l&rsquo;avoir d&eacute;pos&eacute; au guichet avant la cl&ocirc;ture.</div>
+    <div><strong>Seules les parts en banque peuvent devenir des voix.</strong>
+    Un jeton dans ta poche ne vaut rien au scrutin&nbsp;: il faut l&rsquo;avoir
+    d&eacute;pos&eacute; au guichet avant la cl&ocirc;ture.</div>
   </div>
 
   <!-- Guichet -->
@@ -67,7 +69,7 @@
     </div>
   </div>
 
-  <!-- Virement -->
+  <!-- Cession -->
   <div class="pnl">
     <div class="pnl-h"><span class="ic">&#128232;</span> C&eacute;der des parts (en banque)</div>
     <div class="pnl-b">
@@ -104,9 +106,9 @@
       <span class="bdg" id="v-status">&mdash;</span></div>
     <div class="pnl-b" id="v-body"><div class="empty">Chargement&hellip;</div></div>
   </div>
-  <div class="pnl" id="v-quorum-pnl" style="display:none">
+  <div class="pnl" id="v-part-pnl" style="display:none">
     <div class="pnl-h"><span class="ic">&#128101;</span> Participation</div>
-    <div class="pnl-b" id="v-quorum"></div>
+    <div class="pnl-b" id="v-part"></div>
   </div>
 </section>
 
@@ -115,18 +117,20 @@
   <div class="pnl">
     <div class="pnl-h"><span class="ic">&#128202;</span> O&ugrave; est le capital</div>
     <div class="pnl-b">
-      <div class="split" id="r-split"><i class="s-acc" style="width:100%"></i></div>
-      <div class="split-key" id="r-key"></div>
+      <div class="split" id="g-split"><i class="s-acc" style="width:100%"></i></div>
+      <div class="split-key" id="g-key"></div>
       <hr class="hr">
-      <div class="stat-grid" id="r-stats"></div>
+      <div class="stat-grid" id="g-stats"></div>
     </div>
   </div>
   <div class="pnl">
     <div class="pnl-h"><span class="ic">&#127942;</span> Principaux actionnaires <span class="sp"></span>
-      <span class="bdg" id="r-topn"></span></div>
+      <span class="bdg" id="g-topn"></span></div>
     <div class="pnl-b">
-      <ul class="lst" id="r-top"><li class="empty">Chargement&hellip;</li></ul>
-      <div id="r-mine"></div>
+      <ul class="lst" id="g-top"><li class="empty">Chargement&hellip;</li></ul>
+      <div id="g-mine"></div>
+      <p class="mini">Le registre compte les parts d&eacute;tenues&nbsp;: en banque, plus
+        celles engag&eacute;es au scrutin. Les jetons physiques, lui, il les ignore.</p>
     </div>
   </div>
 </section>
@@ -140,7 +144,7 @@
       <div class="tok-note">
         <span class="ic">&#128176;</span>
         <div>Tout se paie <strong>en parts, depuis ton compte</strong>. Ce que tu ach&egrave;tes,
-        tu le paies donc en pouvoir de vote.</div>
+        c&rsquo;est autant de voix que tu ne pourras pas peser au scrutin.</div>
       </div>
       <div id="s-msg"></div>
       <div class="shop-grid" id="s-grid"></div>
@@ -214,6 +218,7 @@ let TRES = { issued:0, circulating:0, company:0 };
 let SHOP = [];
 let VOTE = null;          // /vote/current
 let MYBALLOT = null;      // /ballots/{moi}
+let ALLOC = {};           // brouillon de répartition (optionId → parts)
 let POIS = [];
 let MAP = null, meMarker = null, poiLayer = null;
 
@@ -244,20 +249,17 @@ document.getElementById('h-out').addEventListener('click', () => {
   document.getElementById('w-unit').textContent = GAME.units || 'parts';
   document.title = 'Mon compte — ' + (GAME.gameName || '');
 
-  // Ma fiche
   db.collection(COL.players).doc(SESS.id).onSnapshot(snap => {
     if (!snap.exists){ clearSession(); location.replace('index.html'); return; }
     ME = Object.assign({ id: snap.id }, snap.data());
     renderMe();
   }, e => say('t-msg', 'Connexion perdue : ' + e.message, 'err'));
 
-  // Tous les actionnaires (destinataires, registre, participation)
   db.collection(COL.players).onSnapshot(qs => {
     PLAYERS = qs.docs.map(d => Object.assign({ id:d.id }, d.data()));
     renderRecipients(); renderRegistre(); renderVote();
   });
 
-  // Trésorerie
   db.collection(COL.config).doc('treasury').onSnapshot(s => {
     const d = s.exists ? s.data() : {};
     TRES = { issued:Number(d.issued)||0, circulating:Number(d.circulating)||0,
@@ -276,17 +278,16 @@ document.getElementById('h-out').addEventListener('click', () => {
     recv = qs.docs.map(d => Object.assign({ dir:'in' }, d.data())); merge();
   });
 
-  // Ma demande en cours au guichet
   db.collection(COL.requests).where('playerId','==',SESS.id)
     .where('status','==','pending').onSnapshot(qs => {
       renderPending(qs.docs.map(d => d.data()));
     });
 
-  // Scrutin
   db.collection(COL.vote).doc('current').onSnapshot(s => {
     VOTE = s.exists ? s.data() : null;
     renderVote();
   });
+
   // Mon bulletin, en écoute : si je vote depuis un autre appareil,
   // cet écran le reflète au lieu de croire que je n'ai pas voté.
   db.collection(COL.ballots).doc(SESS.id).onSnapshot(s => {
@@ -294,7 +295,6 @@ document.getElementById('h-out').addEventListener('click', () => {
     renderVote();
   });
 
-  // Catalogue, commandes, journal, carte
   db.collection(COL.shop).doc('catalog').onSnapshot(s => {
     SHOP = s.exists ? (s.data().items || []) : []; renderShop();
   });
@@ -309,7 +309,7 @@ document.getElementById('h-out').addEventListener('click', () => {
   });
 
   loadRules();
-  setInterval(renderVote, 30000);   // rafraîchit le compte à rebours
+  setInterval(refreshVoteLive, 20000);   // compte à rebours
 
   try{
     const t = localStorage.getItem('gpc_tab');
@@ -318,9 +318,11 @@ document.getElementById('h-out').addEventListener('click', () => {
 })();
 
 /* ---------- Agrégats ---------- */
-const onAccounts = () => PLAYERS.filter(p => p.active !== false)
-  .reduce((s,p) => s + (Number(p.shares)||0), 0);
-const capital = () => TRES.issued || (onAccounts() + TRES.circulating + TRES.company);
+const actifs = () => PLAYERS.filter(p => p.active !== false);
+const onAccounts = () => actifs().reduce((s,p) => s + (Number(p.shares)||0), 0);
+const totalEngaged = () => actifs().reduce((s,p) => s + (Number(p.engaged)||0), 0);
+const capital = () => TRES.issued ||
+  (onAccounts() + totalEngaged() + TRES.circulating + TRES.company);
 
 /* ============================================================
    Mes parts
@@ -333,16 +335,25 @@ function renderMe(){
   document.getElementById('s-bal').textContent  = parts(ME.shares);
   const cap = capital();
   document.getElementById('w-pct').innerHTML = cap
-    ? 'soit <b>' + pctOf(ME.shares, cap) + '</b> du capital &eacute;mis'
+    ? 'soit <b>' + pctOf(held(ME), cap) + '</b> du capital, engagées comprises'
     : '';
-  renderStatsMine(); renderShop(); renderRegistre();
+
+  const eng = Number(ME.engaged)||0;
+  document.getElementById('w-engaged').innerHTML = eng
+    ? '<div class="msg msg-ok" style="display:flex;gap:9px;align-items:flex-start">' +
+      '<span>&#128499;</span><div><strong>' + parts(eng) + ' engagées au scrutin.</strong> ' +
+      'Elles sont bloquées jusqu’au dépouillement, puis elles te seront rendues. ' +
+      'Tu détiens toujours ' + parts(held(ME)) + ' en tout.</div></div>'
+    : '';
+
+  renderStatsMine(); renderShop(); renderRegistre(); renderVote();
 }
 
 function renderRecipients(){
   const sel = document.getElementById('t-to');
   const keep = sel.value;
-  const others = PLAYERS
-    .filter(p => p.id !== SESS.id && p.active !== false)
+  const others = actifs()
+    .filter(p => p.id !== SESS.id)
     .sort((a,b) => String(a.pseudo||a.id).localeCompare(String(b.pseudo||b.id),'fr'));
   sel.innerHTML = '<option value="">— Choisir un actionnaire —</option>' +
     others.map(p => '<option value="' + esc(p.id) + '">' + esc(p.pseudo || p.id) +
@@ -353,10 +364,9 @@ function renderRecipients(){
 document.getElementById('t-go').addEventListener('click', async () => {
   const btn = document.getElementById('t-go');
   const to = document.getElementById('t-to').value;
-  const q  = document.getElementById('t-qty').value;
   say('t-msg','');
   if (!to){ say('t-msg','Choisis un destinataire.','err'); return; }
-  const n = Math.round(Number(q)||0);
+  const n = Math.round(Number(document.getElementById('t-qty').value)||0);
   if (n <= 0){ say('t-msg','Indique un nombre de parts.','err'); return; }
   const who = (PLAYERS.find(p => p.id === to) || {}).pseudo || to;
   if (!confirm('Céder ' + parts(n) + ' à ' + who + ' ?\n\nC’est immédiat et définitif.')) return;
@@ -373,12 +383,11 @@ document.getElementById('t-go').addEventListener('click', async () => {
 /* ---------- Guichet ---------- */
 function renderPending(rows){
   const box = document.getElementById('g-pending');
-  if (!rows.length){ box.innerHTML = ''; return; }
   box.innerHTML = rows.map(r =>
     '<div class="msg msg-ok" style="display:flex;align-items:center;gap:8px">' +
-      '<span>&#9203;</span><div>Demande en attente au guichet&nbsp;: <strong>' +
+      '<span>&#9203;</span><div>Demande en attente&nbsp;: <strong>' +
       (r.kind === 'withdraw' ? 'retirer' : 'déposer') + ' ' + num(r.qty) +
-      ' jeton' + (r.qty > 1 ? 's' : '') + '</strong>. Présente-toi à l’organisation.</div></div>').join('');
+      ' jeton' + (r.qty > 1 ? 's' : '') + '</strong>. Présente-toi au guichet.</div></div>').join('');
 }
 
 async function guichet(kind){
@@ -402,8 +411,9 @@ document.getElementById('g-dp').addEventListener('click', () => guichet('deposit
 
 /* ---------- Relevé ---------- */
 const MV_LABEL = {
-  transfer:'Virement', withdraw:'Retrait en jetons', deposit:'Dépôt de jetons',
-  issue:'Émission', grant:'Attribution', reclaim:'Reprise', shop:'Achat'
+  transfer:'Cession', withdraw:'Retrait en jetons', deposit:'Dépôt de jetons',
+  issue:'Émission', grant:'Attribution', reclaim:'Reprise', shop:'Achat',
+  vote:'Conversion en voix', release:'Parts rendues'
 };
 function renderHist(rows){
   const ul = document.getElementById('w-hist');
@@ -411,143 +421,265 @@ function renderHist(rows){
   ul.innerHTML = rows.map(r => {
     const out   = r.dir === 'out';
     const other = out ? partyName(r.to, r.toName) : partyName(r.from, r.fromName);
-    const tok   = (r.type === 'withdraw' || r.type === 'deposit');
+    const cls   = (r.type === 'withdraw' || r.type === 'deposit') ? 'amt-tok'
+                : (r.type === 'vote' || r.type === 'release')     ? 'amt-vote'
+                : (out ? 'amt-out' : 'amt-in');
     return '<li><div class="lst-main">' +
         '<div class="lst-t">' + esc(r.label || MV_LABEL[r.type] || '—') + '</div>' +
         '<div class="lst-s">' + (out ? 'vers ' : 'de ') + esc(other) + ' · ' + esc(when(r.ts)) + '</div>' +
-      '</div><div class="lst-amt ' + (tok ? 'amt-tok' : (out ? 'amt-out' : 'amt-in')) + '">' +
-        (out ? '−' : '+') + num(r.shares) + '</div></li>';
+      '</div><div class="lst-amt ' + cls + '">' + (out ? '−' : '+') + num(r.shares) + '</div></li>';
   }).join('');
 }
 
 /* ============================================================
    Scrutin
+
+   Le corps n'est reconstruit que si l'ÉTAT change (_voteKey) : sinon un
+   rafraîchissement effacerait la répartition en cours de saisie. Les
+   éléments vivants (compte à rebours, parts disponibles, participation)
+   sont mis à jour séparément par refreshVoteLive().
    ============================================================ */
+let _voteKey = null;
+
 function renderVote(){
+  const st = VOTE && VOTE.status;
+  const mine = !!MYBALLOT;
+  const key = [st||'none', mine?'v':'n', (VOTE && (VOTE.options||[]).length)||0,
+               VOTE && VOTE.results ? 'r' : '-'].join('|');
+  if (key !== _voteKey){ _voteKey = key; buildVoteBody(); }
+  refreshVoteLive();
+}
+
+function buildVoteBody(){
   const body   = document.getElementById('v-body');
   const status = document.getElementById('v-status');
-  const dot    = document.getElementById('tab-dot');
-  const qPnl   = document.getElementById('v-quorum-pnl');
-  dot.style.display = 'none';
-  qPnl.style.display = 'none';
+  const st = VOTE && VOTE.status;
 
-  if (!VOTE || VOTE.status === 'draft' || !VOTE.status){
+  /* ---- pas encore publié ---- */
+  if (!VOTE || !st || st === 'draft'){
     status.textContent = 'à venir'; status.className = 'bdg';
     body.innerHTML = '<div class="empty">L’ordre du jour n’est pas encore publié.<br>' +
       'La direction vous le communiquera en temps voulu.</div>';
     return;
   }
 
-  const closed = VOTE.status === 'closed';
-  status.textContent = closed ? 'clos' : 'ouvert';
-  status.className   = 'bdg ' + (closed ? 'bdg-dng' : 'bdg-ok');
-
   let h = '<div class="vote-q">' + esc(VOTE.question || 'Décision à prendre') + '</div>';
   if (VOTE.detail) h += '<div class="vote-d">' + esc(VOTE.detail) + '</div>';
 
-  /* ---- scrutin clos : résultats ---- */
-  if (closed){
+  /* ---- annoncé : on sait quoi, pas encore quand voter ---- */
+  if (st === 'announced'){
+    status.textContent = 'annoncé'; status.className = 'bdg bdg-warn';
+    h += '<div class="deadline"><span>&#128276;</span><div class="dl-t">' +
+         'Le scrutin ouvrira' + (VOTE.opensAt ? ' <b>' + esc(whenLong(VOTE.opensAt)) + '</b>' : ' bientôt') +
+         (VOTE.opensAt ? '<br><span id="v-dl"></span>' : '') + '</div></div>';
+    h += '<div class="tok-note"><span class="ic">&#9878;</span><div>' +
+         'Le jour venu, tu <strong>échangeras tes parts en banque contre des voix</strong> ' +
+         '(1 part = 1 voix), réparties comme tu veux entre les options. ' +
+         '<strong>Un seul passage</strong>, définitif. D’ici là&nbsp;: récupère des parts, ' +
+         'et surtout <strong>fais déposer tes jetons au guichet</strong> — un jeton ne vote pas.' +
+         '</div></div>';
+    h += '<hr class="hr"><h3 style="margin:0 0 9px">Les options soumises</h3>';
+    h += (VOTE.options||[]).map((o,i) =>
+      '<div class="vote-opt" style="cursor:default">' +
+        '<span class="vo-k">' + String.fromCharCode(65+i) + '</span>' +
+        '<span><span class="vo-t">' + esc(o.label || o.id) + '</span>' +
+        (o.desc ? '<span class="vo-d">' + esc(o.desc) + '</span>' : '') + '</span></div>').join('');
+    body.innerHTML = h;
+    return;
+  }
+
+  /* ---- clos : résultats ---- */
+  if (st === 'closed'){
+    status.textContent = 'clos'; status.className = 'bdg bdg-dng';
     const R = VOTE.results;
-    if (!R){ h += '<div class="empty">Dépouillement en cours…</div>'; body.innerHTML = h; return; }
+    if (!R){ body.innerHTML = h + '<div class="empty">Dépouillement en cours…</div>'; return; }
     const max = Math.max(1, ...(R.ranked||[]).map(o => o.shares));
     h += '<hr class="hr"><h3 style="margin:0 0 10px">Résultat</h3>';
     h += (R.ranked||[]).map(o => {
       const win = R.winnerId === o.id;
       return '<div class="res' + (win ? ' res-win' : '') + '">' +
         '<div class="res-h"><span class="res-t">' + (win ? '★ ' : '') + esc(o.label || o.id) + '</span>' +
-        '<span class="res-v">' + num(o.shares) + ' · ' + pctOf(o.shares, R.expressed||1) + '</span></div>' +
+        '<span class="res-v">' + voix(o.shares) + ' · ' + pctOf(o.shares, R.expressed||1) + '</span></div>' +
         '<div class="res-bar"><i style="width:' + (o.shares/max*100).toFixed(1) + '%"></i></div>' +
         '<div class="lst-s" style="margin-top:3px">' + num(o.voters) + ' actionnaire' +
           (o.voters>1?'s':'') + '</div></div>';
     }).join('');
     if (R.tie) h += '<div class="msg msg-err">Égalité parfaite. La direction tranchera.</div>';
-    h += '<p class="mini">' + num(R.expressed) + ' ' + (GAME.units||'parts') + ' exprimées sur ' +
-         num(R.onAccounts) + ' en banque · ' + num(R.voters) + ' votants' +
-         (R.voidBallots ? ' · ' + num(R.voidBallots) + ' bulletin(s) nul(s)' : '') + '</p>';
+    if (MYBALLOT) h += myBallotHtml('Ton bulletin');
+    h += '<p class="mini">' + voix(R.expressed) + ' exprimées · ' + num(R.voters) + ' votants' +
+         (R.voidShares ? ' · ' + num(R.voidShares) + ' voix perdues (option retirée)' : '') +
+         '<br>Les parts engagées ont été rendues aux comptes.</p>';
     body.innerHTML = h;
     return;
   }
 
-  /* ---- scrutin ouvert ---- */
+  /* ---- ouvert ---- */
+  status.textContent = 'ouvert'; status.className = 'bdg bdg-ok';
   if (VOTE.closesAt){
-    const left = countdown(VOTE.closesAt);
-    h += '<div class="deadline"><span>&#9201;</span><div class="dl-t">Clôture du scrutin et ' +
-         'dernier dépôt de jetons<br><b>' + esc(left) + '</b> restant' +
-         '</div></div>';
+    h += '<div class="deadline"><span>&#9201;</span><div class="dl-t">' +
+         'Clôture du scrutin et dernier dépôt de jetons<br><span id="v-dl"></span></div></div>';
   }
-  h += '<div class="tok-note"><span class="ic">&#9878;</span><div>Ton poids sera tes parts ' +
-       '<strong>en banque au moment du dépouillement</strong> — soit ' +
-       '<strong>' + parts(ME ? ME.shares : 0) + '</strong> à cet instant. ' +
-       'Les jetons non déposés ne compteront pas.</div></div>';
 
-  const mine = MYBALLOT && MYBALLOT.optionId;
-  h += (VOTE.options||[]).map((o,i) =>
-    '<button class="vote-opt' + (mine === o.id ? ' on' : '') + '" data-opt="' + esc(o.id) + '">' +
-      '<span class="vo-k">' + String.fromCharCode(65+i) + '</span>' +
-      '<span><span class="vo-t">' + esc(o.label || o.id) + '</span>' +
-      (o.desc ? '<span class="vo-d">' + esc(o.desc) + '</span>' : '') + '</span></button>').join('');
+  /* déjà voté : bulletin verrouillé */
+  if (MYBALLOT){
+    h += myBallotHtml('Ton bulletin est déposé');
+    h += '<div class="msg msg-ok">Ton vote est <strong>définitif</strong> : un seul passage. ' +
+         'Tes ' + parts(MYBALLOT.total) + ' sont bloquées jusqu’au dépouillement, ' +
+         'puis elles te seront rendues.</div>';
+    body.innerHTML = h;
+    return;
+  }
 
-  h += mine
-    ? '<div class="msg msg-ok">Bulletin enregistré. Tu peux encore en changer jusqu’à la clôture.</div>'
-    : '<div class="msg msg-err">Tu n’as pas encore voté.</div>';
+  /* formulaire de conversion */
+  h += '<div class="tok-note"><span class="ic">&#9878;</span><div>' +
+       '<strong>1 part en banque = 1 voix.</strong> Répartis comme tu veux entre les options. ' +
+       'Tu ne passes <strong>qu’une seule fois</strong> : une fois validé, plus de retour. ' +
+       'Les parts engagées te seront rendues après le dépouillement.</div></div>';
+  h += '<div id="v-alloc">' + (VOTE.options||[]).map((o,i) =>
+      '<div class="alloc">' +
+        '<span class="vo-k">' + String.fromCharCode(65+i) + '</span>' +
+        '<div class="alloc-t"><div class="vo-t">' + esc(o.label || o.id) + '</div>' +
+          (o.desc ? '<div class="vo-d">' + esc(o.desc) + '</div>' : '') + '</div>' +
+        '<input class="alloc-n" type="number" min="0" step="1" inputmode="numeric" ' +
+          'placeholder="0" data-opt="' + esc(o.id) + '" value="' +
+          (ALLOC[o.id] ? Number(ALLOC[o.id]) : '') + '">' +
+      '</div>').join('') + '</div>';
+  h += '<div class="alloc-sum" id="v-sum"></div>';
   h += '<div id="v-msg"></div>';
+  h += '<button class="btn btn-pri btn-blk" id="v-cast">Convertir mes parts et voter</button>';
+  h += '<p class="mini">Tu peux n’engager qu’une partie de tes parts. ' +
+       'Ce que tu n’engages pas ne pèsera rien — et ne te servira à rien d’autre.</p>';
   body.innerHTML = h;
-  if (!mine) dot.style.display = '';
-
-  /* ---- participation ---- */
-  const voted = VOTE.voted || {};
-  const act = PLAYERS.filter(p => p.active !== false);
-  const votedIds = Object.keys(voted).filter(k => voted[k]);
-  const repr = act.filter(p => voted[p.id]).reduce((s,p) => s + (Number(p.shares)||0), 0);
-  const acc = onAccounts();
-  qPnl.style.display = '';
-  document.getElementById('v-quorum').innerHTML =
-    '<div class="stat-grid">' +
-      '<div class="stat"><div class="stat-v">' + votedIds.length + '<span style="font-size:.6em;color:var(--td)">/' +
-        act.length + '</span></div><div class="stat-l">Votants</div></div>' +
-      '<div class="stat"><div class="stat-v gold sm">' + pctOf(repr, acc||1) +
-        '</div><div class="stat-l">Capital exprimé</div></div>' +
-    '</div>' +
-    '<div class="bar" style="margin-top:10px"><i style="width:' +
-      (acc ? (repr/acc*100).toFixed(1) : 0) + '%"></i></div>' +
-    '<p class="mini">Les noms de ceux qui ont voté sont publics&nbsp;; leur bulletin ne l’est pas.</p>' +
-    (act.length - votedIds.length > 0
-      ? '<hr class="hr"><h3 style="margin:0 0 7px">N’ont pas encore voté</h3><p style="margin:0;color:var(--td);font-size:.9rem">' +
-        act.filter(p => !voted[p.id]).map(p => esc(p.pseudo || p.id)).join(' · ') + '</p>'
-      : '<p class="mini" style="color:var(--ac)">Tout le monde a voté.</p>');
 }
 
+/** Récapitulatif d'un bulletin déposé. */
+function myBallotHtml(title){
+  const opts = {}; (VOTE.options||[]).forEach(o => { opts[o.id] = o.label || o.id; });
+  const rows = Object.keys(MYBALLOT.alloc || {})
+    .map(k => '<li><div class="lst-main"><div class="lst-t">' + esc(opts[k] || k) +
+      '</div></div><div class="lst-amt amt-vote">' + voix(MYBALLOT.alloc[k]) + '</div></li>').join('');
+  return '<hr class="hr"><h3 style="margin:0 0 7px">' + esc(title) + '</h3>' +
+    '<ul class="lst">' + rows + '</ul>' +
+    '<p class="mini">Déposé ' + esc(when(MYBALLOT.ts)) + ' · ' + parts(MYBALLOT.total) + ' engagées</p>';
+}
+
+/** Éléments vivants : compte à rebours, total de la répartition, participation. */
+function refreshVoteLive(){
+  const st = VOTE && VOTE.status;
+
+  const dl = document.getElementById('v-dl');
+  if (dl) dl.innerHTML = '<b>' + esc(countdown(st === 'announced' ? VOTE.opensAt : VOTE.closesAt)) +
+    '</b>' + (st === 'announced' ? '' : ' restant');
+
+  // Total de ma répartition en cours
+  const sum = document.getElementById('v-sum');
+  if (sum){
+    const avail = Number(ME && ME.shares) || 0;
+    let total = 0;
+    document.querySelectorAll('#v-alloc .alloc-n').forEach(i => {
+      total += Math.max(0, Math.round(Number(i.value)||0));
+    });
+    const over = total > avail;
+    sum.innerHTML =
+      '<div class="as-row"><span>Parts engagées</span><b class="' + (over ? 'as-bad' : 'as-ok') + '">' +
+        num(total) + '</b></div>' +
+      '<div class="as-row"><span>Disponibles en banque</span><b>' + num(avail) + '</b></div>' +
+      (over ? '<div class="as-warn">Tu engages plus que tu ne possèdes.</div>'
+            : total ? '<div class="as-note">Soit ' + voix(total) + ' au scrutin.</div>' : '');
+    const btn = document.getElementById('v-cast');
+    if (btn){ btn.disabled = (total <= 0 || over); }
+  }
+
+  // Pastille d'onglet : scrutin ouvert et je n'ai pas voté
+  document.getElementById('tab-dot').style.display =
+    (st === 'open' && !MYBALLOT) ? '' : 'none';
+
+  // Participation
+  const pnl = document.getElementById('v-part-pnl');
+  if (st !== 'open' && st !== 'closed'){ pnl.style.display = 'none'; return; }
+  pnl.style.display = '';
+  const voted = (VOTE.voted) || {};
+  const act = actifs();
+  const ids = Object.keys(voted);
+  const engaged = ids.reduce((s,k) => s + (Number(voted[k])||0), 0);
+  const pending = act.filter(p => !(p.id in voted));
+  const potential = engaged + act.reduce((s,p) => s + (Number(p.shares)||0), 0);
+  document.getElementById('v-part').innerHTML =
+    '<div class="stat-grid">' +
+      '<div class="stat"><div class="stat-v">' + ids.length +
+        '<span style="font-size:.6em;color:var(--td)">/' + act.length + '</span></div>' +
+        '<div class="stat-l">Votants</div></div>' +
+      '<div class="stat"><div class="stat-v vio sm">' + num(engaged) +
+        '</div><div class="stat-l">Voix déposées</div></div>' +
+      '<div class="stat"><div class="stat-v gold sm">' + num(TRES.circulating) +
+        '</div><div class="stat-l">Jetons dehors</div></div>' +
+    '</div>' +
+    '<div class="bar" style="margin-top:10px"><i style="width:' +
+      (potential ? (engaged/potential*100).toFixed(1) : 0) + '%"></i></div>' +
+    '<p class="mini">Qui a voté et combien il a engagé sont publics. ' +
+      'Pour quoi il a voté ne l’est pas' + (st === 'closed' ? '' : ', jusqu’au dépouillement') + '.</p>' +
+    (ids.length
+      ? '<hr class="hr"><h3 style="margin:0 0 7px">Ont voté</h3>' +
+        '<p style="margin:0;color:var(--td);font-size:.9rem">' +
+        ids.map(k => { const p = PLAYERS.find(x => x.id === k);
+          return esc((p && p.pseudo) || k) + ' <span class="amt-vote">(' + num(voted[k]) + ')</span>'; })
+          .join(' · ') + '</p>'
+      : '') +
+    (st === 'open' && pending.length
+      ? '<hr class="hr"><h3 style="margin:0 0 7px">N’ont pas encore voté (' + pending.length + ')</h3>' +
+        '<p style="margin:0;color:var(--td);font-size:.9rem">' +
+        pending.map(p => esc(p.pseudo || p.id)).join(' · ') + '</p>'
+      : st === 'open' ? '<p class="mini" style="color:var(--ac)">Tout le monde a voté.</p>' : '');
+}
+
+/* saisie de la répartition */
+document.getElementById('v-body').addEventListener('input', ev => {
+  const i = ev.target.closest('.alloc-n'); if (!i) return;
+  const n = Math.max(0, Math.round(Number(i.value)||0));
+  if (n) ALLOC[i.dataset.opt] = n; else delete ALLOC[i.dataset.opt];
+  refreshVoteLive();
+});
+
 document.getElementById('v-body').addEventListener('click', async ev => {
-  const b = ev.target.closest('button[data-opt]');
-  if (!b) return;
-  const opt = (VOTE.options||[]).find(o => o.id === b.dataset.opt);
-  if (!opt) return;
-  if (!confirm('Voter « ' + (opt.label||'') + ' » ?')) return;
-  b.disabled = true;
-  const r = await castBallot(SESS.id, ME.pseudo || SESS.id, opt.id);
-  if (r.ok){
-    MYBALLOT = { optionId: opt.id, ts: Date.now() };
-    renderVote();
-  } else { say('v-msg', r.error, 'err'); b.disabled = false; }
+  const b = ev.target.closest('#v-cast');
+  if (!b || b.disabled) return;
+  const opts = {}; (VOTE.options||[]).forEach(o => { opts[o.id] = o.label || o.id; });
+  const lines = Object.keys(ALLOC).filter(k => ALLOC[k] > 0)
+    .map(k => '  · ' + (opts[k] || k) + ' : ' + ALLOC[k] + ' voix');
+  const total = Object.keys(ALLOC).reduce((s,k) => s + (Number(ALLOC[k])||0), 0);
+  if (!total) return;
+  if (!confirm('Voter définitivement ?\n\n' + lines.join('\n') +
+      '\n\nTotal : ' + total + ' voix pour ' + total + ' parts engagées.\n\n' +
+      'Un seul passage : tu ne pourras plus revenir, ni changer, ni ajouter.')) return;
+  say('v-msg','');
+  b.disabled = true; b.textContent = 'Dépôt du bulletin…';
+  const r = await castBallot(SESS.id, ME.pseudo || SESS.id, ALLOC);
+  if (r.ok){ ALLOC = {}; }
+  else {
+    say('v-msg', r.error, 'err');
+    b.disabled = false; b.textContent = 'Convertir mes parts et voter';
+  }
 });
 
 /* ============================================================
    Registre
    ============================================================ */
 function renderRegistre(){
-  const acc = onAccounts(), cap = capital();
+  const acc = onAccounts(), eng = totalEngaged(), cap = capital();
   const w = v => cap ? (v/cap*100).toFixed(2) + '%' : '0%';
-  document.getElementById('r-split').innerHTML =
-    '<i class="s-acc" style="width:' + w(acc) + '"></i>' +
-    '<i class="s-tok" style="width:' + w(TRES.circulating) + '"></i>' +
-    '<i class="s-co"  style="width:' + w(TRES.company) + '"></i>';
-  document.getElementById('r-key').innerHTML =
+  document.getElementById('g-split').innerHTML =
+    '<i class="s-acc"  style="width:' + w(acc) + '"></i>' +
+    '<i class="s-vote" style="width:' + w(eng) + '"></i>' +
+    '<i class="s-tok"  style="width:' + w(TRES.circulating) + '"></i>' +
+    '<i class="s-co"   style="width:' + w(TRES.company) + '"></i>';
+  document.getElementById('g-key').innerHTML =
     '<span><i style="background:var(--ac)"></i>En banque ' + num(acc) + '</span>' +
+    (eng ? '<span><i style="background:var(--vio)"></i>Engagées au vote ' + num(eng) + '</span>' : '') +
     '<span><i style="background:var(--gold)"></i>En jetons ' + num(TRES.circulating) + '</span>' +
-    '<span><i style="background:var(--vio)"></i>Trésorerie ' + num(TRES.company) + '</span>';
+    '<span><i style="background:var(--b2)"></i>Trésorerie ' + num(TRES.company) + '</span>';
 
-  const act = PLAYERS.filter(p => p.active !== false);
-  document.getElementById('r-stats').innerHTML = [
+  const act = actifs();
+  document.getElementById('g-stats').innerHTML = [
     ['Capital émis', num(cap), 'plain'],
     ['Actionnaires', act.length, 'plain'],
     ['Hors de l’app', pctOf(TRES.circulating, cap||1), 'gold']
@@ -557,25 +689,24 @@ function renderRegistre(){
   // Registre public : top N seulement (choix d'organisation)
   const topN = Number(GAME.registryTop);
   const N = isNaN(topN) ? 10 : topN;
-  document.getElementById('r-topn').textContent = N ? 'top ' + N : 'non publié';
-  const ranked = act.slice().sort((a,b) => (Number(b.shares)||0) - (Number(a.shares)||0));
-  const ul = document.getElementById('r-top');
+  document.getElementById('g-topn').textContent = N ? 'top ' + N : 'non publié';
+  const ranked = act.slice().sort((a,b) => held(b) - held(a));
+  const ul = document.getElementById('g-top');
   ul.innerHTML = N
     ? (ranked.slice(0,N).map((p,i) =>
         '<li><div class="lst-main"><div class="lst-t">' + (i+1) + '. ' + esc(p.pseudo || p.id) +
           (p.id === SESS.id ? ' <span class="bdg bdg-ok">toi</span>' : '') + '</div>' +
           (p.role ? '<div class="lst-s">' + esc(p.role) + '</div>' : '') + '</div>' +
-          '<div class="lst-amt">' + num(p.shares) + '<span class="lst-s"> · ' +
-          pctOf(p.shares, cap||1) + '</span></div></li>').join('')
+          '<div class="lst-amt">' + num(held(p)) + '<span class="lst-s"> · ' +
+          pctOf(held(p), cap||1) + '</span></div></li>').join('')
        || '<li class="empty">Aucun actionnaire.</li>')
     : '<li class="empty">Le registre nominatif n’est pas publié.</li>';
 
-  // Mon rang, même si je suis hors du top
   const myRank = ranked.findIndex(p => p.id === SESS.id) + 1;
-  document.getElementById('r-mine').innerHTML = (myRank && (!N || myRank > N))
+  document.getElementById('g-mine').innerHTML = (myRank && (!N || myRank > N))
     ? '<hr class="hr"><p style="margin:0;color:var(--td);font-size:.9rem">Toi&nbsp;: <strong>' +
-      myRank + '<sup>e</sup></strong> sur ' + ranked.length + ' avec ' + parts(ME ? ME.shares : 0) +
-      ' (' + pctOf(ME ? ME.shares : 0, cap||1) + '). Hors du top ' + N + ' publié.</p>'
+      myRank + '<sup>e</sup></strong> sur ' + ranked.length + ' avec ' + parts(held(ME)) +
+      ' (' + pctOf(held(ME), cap||1) + '). Hors du top ' + N + ' publié.</p>'
     : '';
 }
 
@@ -614,7 +745,7 @@ document.getElementById('s-grid').addEventListener('click', async ev => {
   const it = SHOP.find(x => x.id === b.dataset.buy);
   if (!it) return;
   if (!confirm('Acheter « ' + (it.name||'') + ' » pour ' + parts(it.price) + ' ?\n\n' +
-               'Autant de pouvoir de vote en moins.')) return;
+               'Autant de voix en moins au scrutin.')) return;
   say('s-msg','');
   b.disabled = true; b.textContent = '…';
   const r = await purchase(SESS.id, it.id, 1);
