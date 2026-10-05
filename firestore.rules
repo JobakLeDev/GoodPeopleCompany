@@ -1,0 +1,72 @@
+rules_version = '2';
+
+// ============================================================
+//  Good People Company — règles Firestore
+//  À publier dans la console Firebase :
+//  Firestore Database → Règles → coller → Publier
+// ============================================================
+//
+//  ⚠️ LIRE CECI. Ce jeu n'utilise PAS Firebase Auth (login = pseudo +
+//  code, vérifié côté navigateur). Firestore ne peut donc pas savoir
+//  QUI écrit : n'importe qui ouvrant la console du navigateur peut
+//  lire les codes d'accès et modifier les soldes.
+//
+//  C'est un compromis assumé pour un jeu entre joueurs consentants sur
+//  un week-end. Ce que ça implique concrètement :
+//    · ne mets JAMAIS de donnée personnelle réelle dans ces documents ;
+//    · le code organisation d'admin.html est un verrou de confort, pas
+//      une barrière ;
+//    · après le week-end, va dans la console et repasse tout en
+//      `allow read, write: if false;` (ou supprime le projet).
+//
+//  Si tu veux une vraie étanchéité plus tard : activer Firebase Auth
+//  (anonyme ou e-mail), stocker l'uid dans /players/{id}.uid, puis
+//  n'autoriser l'écriture du solde qu'à des Cloud Functions.
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Fiches joueurs : pseudo, code, solde, stats, position partagée.
+    match /players/{playerId} {
+      allow read, write: if true;
+    }
+
+    // Grand livre des transactions. Écrit par les transactions du client.
+    // Immuable par convention (on n'édite jamais une ligne existante).
+    match /ledger/{entryId} {
+      allow read, create: if true;
+      allow update, delete: if false;   // l'historique ne se réécrit pas
+    }
+
+    // Commandes du magasin (status: pending → delivered).
+    match /orders/{orderId} {
+      allow read, write: if true;
+    }
+
+    // Catalogue : /shop/catalog = { items: [...] }
+    match /shop/{docId} {
+      allow read, write: if true;
+    }
+
+    // Journal public : /journal/public = { entries: [...] }
+    match /journal/{docId} {
+      allow read, write: if true;
+    }
+
+    // Plan : /map/data = { pois: [...] }
+    match /map/{docId} {
+      allow read, write: if true;
+    }
+
+    // Réglages de partie : /config/game
+    match /config/{docId} {
+      allow read, write: if true;
+    }
+
+    // Tout le reste est fermé.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

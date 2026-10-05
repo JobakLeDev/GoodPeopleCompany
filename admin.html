@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#141b23">
+<title>Organisation — Good People Company</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="common/style.css">
+<style>
+  .atabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+  .atabs button{padding:8px 13px;font-size:.86rem;font-weight:650;cursor:pointer;
+    background:var(--pnl);color:var(--td);border:1px solid var(--b);border-radius:999px;font-family:inherit}
+  .atabs button.on{background:var(--ac);color:#06130d;border-color:transparent}
+  .ed{background:var(--bg2);border:1px solid var(--b);border-radius:var(--r-sm);padding:12px;margin:0 0 10px}
+  .ed-h{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+  .ed-h .lst-t{flex:1}
+  .mini{font-size:12px;color:var(--tf);margin:4px 0 0}
+  #amap{height:380px;border-radius:var(--r-sm);border:1px solid var(--b);z-index:0}
+  .gate{max-width:360px;margin:12vh auto}
+</style>
+</head>
+<body>
+
+<!-- ============ Verrou ============ -->
+<div id="gate" class="gate wrap">
+  <div class="pnl">
+    <div class="pnl-h"><span class="ic">&#128274;</span> Acc&egrave;s organisation</div>
+    <div class="pnl-b">
+      <div id="g-msg"></div>
+      <form id="g-form">
+        <div class="field">
+          <label for="g-code">Code organisation</label>
+          <input id="g-code" type="password" inputmode="numeric" class="mono" autofocus>
+        </div>
+        <button class="btn btn-pri btn-blk" type="submit">D&eacute;verrouiller</button>
+      </form>
+      <p class="mini"><a href="index.html">&larr; Retour &agrave; l&rsquo;accueil</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Console ============ -->
+<div id="console" style="display:none">
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">GP</div>
+    <div><span class="brand-txt">Console organisation</span>
+         <span class="brand-sub" id="h-camp">&nbsp;</span></div>
+  </div>
+  <div class="sp"></div>
+  <a class="btn btn-sm" href="index.html">Accueil</a>
+</div>
+
+<div class="wrap-wide">
+  <div class="atabs" id="atabs">
+    <button data-sec="players" class="on">&#128101; Joueurs</button>
+    <button data-sec="shop">&#128722; Magasin</button>
+    <button data-sec="orders">&#128230; Commandes</button>
+    <button data-sec="journal">&#128240; Journal</button>
+    <button data-sec="map">&#128506; Carte</button>
+    <button data-sec="cfg">&#9881; R&eacute;glages</button>
+  </div>
+
+  <!-- ---------- JOUEURS ---------- -->
+  <section class="sec on" id="sec-players">
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#10133;</span> Cr&eacute;er un agent</div>
+      <div class="pnl-b">
+        <div id="np-msg"></div>
+        <div class="row">
+          <div class="field"><label>Nom d&rsquo;agent</label><input id="np-pseudo" placeholder="Camille Dubreuil"></div>
+          <div class="field"><label>Code d&rsquo;acc&egrave;s</label><input id="np-code" class="mono" placeholder="laisser vide = al&eacute;atoire"></div>
+          <div class="field"><label>R&ocirc;le / service</label><input id="np-role" placeholder="Service logistique"></div>
+          <div class="field"><label>Solde de d&eacute;part</label><input id="np-bal" type="number" step="1"></div>
+        </div>
+        <button class="btn btn-pri" id="np-go">Cr&eacute;er le dossier</button>
+        <p class="mini">L&rsquo;identifiant est d&eacute;duit du nom (&laquo;&nbsp;Camille Dubreuil&nbsp;&raquo; &rarr; <span class="mono">camille-dubreuil</span>). Le joueur se connecte avec son nom + son code.</p>
+      </div>
+    </div>
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#128101;</span> Agents <span class="bdg" id="p-count">0</span></div>
+      <div class="pnl-b" id="p-list"><div class="empty">Chargement&hellip;</div></div>
+    </div>
+  </section>
+
+  <!-- ---------- MAGASIN ---------- -->
+  <section class="sec" id="sec-shop">
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#10133;</span> Ajouter un article</div>
+      <div class="pnl-b">
+        <div id="ni-msg"></div>
+        <div class="row">
+          <div class="field"><label>Nom</label><input id="ni-name" placeholder="Ration de survie"></div>
+          <div class="field"><label>Prix</label><input id="ni-price" type="number" step="1" value="50"></div>
+          <div class="field"><label>Stock (vide = illimit&eacute;)</label><input id="ni-stock" type="number" step="1"></div>
+          <div class="field"><label>Emoji / ic&ocirc;ne</label><input id="ni-icon" placeholder="&#129362;"></div>
+        </div>
+        <div class="field"><label>Description</label><input id="ni-desc" placeholder="Un repas complet, ou presque."></div>
+        <div class="field"><label>Image (URL, optionnel)</label><input id="ni-img" placeholder="img/ration.jpg"></div>
+        <button class="btn btn-pri" id="ni-go">Ajouter au catalogue</button>
+      </div>
+    </div>
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#128722;</span> Catalogue</div>
+      <div class="pnl-b" id="i-list"><div class="empty">Catalogue vide.</div></div>
+    </div>
+  </section>
+
+  <!-- ---------- COMMANDES ---------- -->
+  <section class="sec" id="sec-orders">
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#128230;</span> &Agrave; livrer <span class="bdg bdg-warn" id="o-pend">0</span></div>
+      <div class="pnl-b" id="o-list"><div class="empty">Aucune commande.</div></div>
+    </div>
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#128209;</span> Derniers mouvements</div>
+      <div class="pnl-b scroll-x" id="l-list"><div class="empty">Chargement&hellip;</div></div>
+    </div>
+  </section>
+
+  <!-- ---------- JOURNAL ---------- -->
+  <section class="sec" id="sec-journal">
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#128240;</span> Publier au journal public</div>
+      <div class="pnl-b">
+        <div id="nj-msg"></div>
+        <div class="field"><label>Titre</label><input id="nj-title" placeholder="Communiqu&eacute; n&deg;4"></div>
+        <div class="field"><label>Texte</label><textarea id="nj-text" placeholder="Visible de tous les agents."></textarea></div>
+        <button class="btn btn-pri" id="nj-go">Publier</button>
+      </div>
+    </div>
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#128220;</span> Publications</div>
+      <div class="pnl-b" id="j-list"><div class="empty">Rien de publi&eacute;.</div></div>
+    </div>
+  </section>
+
+  <!-- ---------- CARTE ---------- -->
+  <section class="sec" id="sec-map">
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#128506;</span> Plan &mdash; clic sur la carte pour poser un point</div>
+      <div class="pnl-b">
+        <div id="am-msg"></div>
+        <div id="amap"></div>
+        <div class="row" style="margin-top:10px">
+          <div class="field"><label>Nom du point</label><input id="nm-name" placeholder="Poste de commandement"></div>
+          <div class="field"><label>Description</label><input id="nm-desc" placeholder="Ouvert 24&nbsp;h"></div>
+        </div>
+        <p class="mini">Puis clique sur la carte &agrave; l&rsquo;endroit voulu. Les positions partag&eacute;es par les joueurs apparaissent en bleu.</p>
+      </div>
+    </div>
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#128205;</span> Points d&rsquo;int&eacute;r&ecirc;t</div>
+      <div class="pnl-b" id="m-list"><div class="empty">Aucun point.</div></div>
+    </div>
+  </section>
+
+  <!-- ---------- RÉGLAGES ---------- -->
+  <section class="sec" id="sec-cfg">
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#9881;</span> R&eacute;glages de la partie</div>
+      <div class="pnl-b">
+        <div id="cfg-msg"></div>
+        <div class="row">
+          <div class="field"><label>Nom du jeu</label><input id="c-name"></div>
+          <div class="field"><label>Accroche</label><input id="c-tag"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Monnaie (nom)</label><input id="c-cur"></div>
+          <div class="field"><label>Symbole</label><input id="c-sym"></div>
+          <div class="field"><label>Solde de d&eacute;part</label><input id="c-start" type="number" step="1"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Latitude du centre</label><input id="c-lat" type="number" step="0.00001"></div>
+          <div class="field"><label>Longitude du centre</label><input id="c-lng" type="number" step="0.00001"></div>
+          <div class="field"><label>Zoom</label><input id="c-zoom" type="number" step="1" min="1" max="19"></div>
+        </div>
+        <div class="field">
+          <label>R&egrave;glement (markdown l&eacute;ger&nbsp;: <span class="mono">### Titre</span>, <span class="mono">- liste</span>, <span class="mono">**gras**</span>)</label>
+          <textarea id="c-rules" style="min-height:220px"></textarea>
+        </div>
+        <button class="btn btn-pri" id="c-go">Enregistrer les r&eacute;glages</button>
+        <p class="mini">Laisser le r&egrave;glement vide fait retomber sur <span class="mono">data/rules.json</span>.</p>
+      </div>
+    </div>
+  </section>
+</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="common/config.js"></script>
+<script src="common/app.js"></script>
+<script>
+/* ============================================================
+   admin.html — console organisation.
+   ⚠️ Le code ci-dessous n'est qu'un verrou de confort : la sécurité
+   réelle dépend de firestore.rules (voir README).
+   ============================================================ */
+const GATE_KEY = 'gpc_admin';
+let PLAYERS = [], ITEMS = [], AMAP = null, poiLayer = null, posLayer = null, POIS = [];
+
+/* ---- verrou ---- */
+document.getElementById('g-form').addEventListener('submit', ev => {
+  ev.preventDefault();
+  const v = document.getElementById('g-code').value.trim();
+  if (v === String(window.GPC_ADMIN_CODE)){
+    try{ sessionStorage.setItem(GATE_KEY,'1'); }catch(e){}
+    open_();
+  } else say('g-msg','Code incorrect.','err');
+});
+try{ if (sessionStorage.getItem(GATE_KEY) === '1') open_(); }catch(e){}
+
+function open_(){
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('console').style.display = '';
+  boot();
+}
+
+/* ---- onglets ---- */
+document.getElementById('atabs').addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-sec]'); if (!b) return;
+  document.querySelectorAll('.sec').forEach(s => s.classList.toggle('on', s.id === 'sec-' + b.dataset.sec));
+  document.querySelectorAll('#atabs button').forEach(x => x.classList.toggle('on', x === b));
+  if (b.dataset.sec === 'map') initMap();
+});
+
+/* ============================================================
+   Démarrage
+   ============================================================ */
+let booted = false;
+async function boot(){
+  if (booted) return; booted = true;
+  await loadGame();
+  document.getElementById('h-camp').textContent = GAME.gameName || '';
+  fillCfg();
+
+  db.collection(COL.players).onSnapshot(qs => {
+    PLAYERS = qs.docs.map(d => Object.assign({ id:d.id }, d.data()))
+      .sort((a,b) => String(a.pseudo||a.id).localeCompare(String(b.pseudo||b.id),'fr'));
+    document.getElementById('p-count').textContent = PLAYERS.length;
+    renderPlayers(); drawPositions();
+  });
+
+  db.collection(COL.shop).doc('catalog').onSnapshot(s => {
+    ITEMS = s.exists ? (s.data().items || []) : [];
+    renderItems();
+  });
+
+  db.collection(COL.orders).onSnapshot(qs => {
+    const rows = qs.docs.map(d => Object.assign({ _id:d.id }, d.data()))
+                        .sort((a,b) => (b.ts||0)-(a.ts||0));
+    renderOrders(rows);
+  });
+
+  db.collection(COL.ledger).orderBy('ts','desc').limit(40).onSnapshot(qs => {
+    renderLedger(qs.docs.map(d => d.data()));
+  });
+
+  db.collection(COL.journal).doc('public').onSnapshot(s => {
+    renderJournal(s.exists ? (s.data().entries || []) : []);
+  });
+
+  db.collection(COL.map).doc('data').onSnapshot(s => {
+    POIS = s.exists ? (s.data().pois || []) : [];
+    renderPoiList(); drawPois();
+  });
+}
+
+/* ============================================================
+   Joueurs
+   ============================================================ */
+document.getElementById('np-go').addEventListener('click', async () => {
+  const pseudo = document.getElementById('np-pseudo').value.trim();
+  const id = slugify(pseudo);
+  say('np-msg','');
+  if (!id){ say('np-msg','Il faut un nom d’agent.','err'); return; }
+  let code = document.getElementById('np-code').value.trim();
+  if (!code) code = String(Math.floor(1000 + Math.random()*9000));
+  const bal = document.getElementById('np-bal').value;
+  try{
+    const ref = db.collection(COL.players).doc(id);
+    if ((await ref.get()).exists){ say('np-msg','Un dossier porte déjà cet identifiant.','err'); return; }
+    await ref.set({
+      pseudo, code,
+      role: document.getElementById('np-role').value.trim(),
+      balance: bal === '' ? (Number(GAME.startBalance)||0) : Math.round(Number(bal)||0),
+      stats: {}, publicNote: '', active: true, createdAt: Date.now()
+    });
+    say('np-msg','Dossier créé. Code : ' + code, 'ok');
+    ['np-pseudo','np-code','np-role','np-bal'].forEach(k => document.getElementById(k).value = '');
+  }catch(e){ say('np-msg', e.message, 'err'); }
+});
+
+function renderPlayers(){
+  const box = document.getElementById('p-list');
+  if (!PLAYERS.length){ box.innerHTML = '<div class="empty">Aucun agent.</div>'; return; }
+  box.innerHTML = PLAYERS.map(p => {
+    const st = JSON.stringify(p.stats || {}, null, 0);
+    return '<div class="ed" data-pid="' + esc(p.id) + '">' +
+      '<div class="ed-h">' +
+        '<div class="lst-main"><div class="lst-t">' + esc(p.pseudo || p.id) +
+          (p.active === false ? ' <span class="bdg bdg-dng">suspendu</span>' : '') +
+          (p.sharing ? ' <span class="bdg bdg-ok">&#128225; GPS</span>' : '') + '</div>' +
+          '<div class="lst-s mono">' + esc(p.id) + ' &middot; code ' + esc(p.code || '?') +
+          (p.role ? ' &middot; ' + esc(p.role) : '') + '</div></div>' +
+        '<div class="lst-amt">' + money(p.balance) + '</div>' +
+      '</div>' +
+      '<div class="row">' +
+        '<div class="field"><label>Cr&eacute;diter / d&eacute;biter (&plusmn;)</label>' +
+          '<input class="f-delta" type="number" step="1" placeholder="+100 ou -50"></div>' +
+        '<div class="field"><label>Motif</label><input class="f-lb" placeholder="Prime de zèle"></div>' +
+      '</div>' +
+      '<div class="row" style="margin-bottom:10px">' +
+        '<button class="btn btn-sm btn-pri" data-act="adj">Appliquer</button>' +
+        '<button class="btn btn-sm" data-act="save">Enregistrer la fiche</button>' +
+        '<button class="btn btn-sm" data-act="toggle">' + (p.active === false ? 'R&eacute;activer' : 'Suspendre') + '</button>' +
+        '<button class="btn btn-sm btn-dng" data-act="del">Supprimer</button>' +
+      '</div>' +
+      '<div class="row">' +
+        '<div class="field"><label>R&ocirc;le</label><input class="f-role" value="' + esc(p.role || '') + '"></div>' +
+        '<div class="field"><label>Code</label><input class="f-code mono" value="' + esc(p.code || '') + '"></div>' +
+      '</div>' +
+      '<div class="field"><label>Note au dossier (visible du joueur)</label>' +
+        '<input class="f-note" value="' + esc(p.publicNote || '') + '"></div>' +
+      '<div class="field"><label>Stats (JSON &mdash; nombre, ou {"value":3,"max":10} pour une barre)</label>' +
+        '<input class="f-stats mono" value="' + esc(st) + '"></div>' +
+    '</div>';
+  }).join('');
+}
+
+document.getElementById('p-list').addEventListener('click', async ev => {
+  const b = ev.target.closest('button[data-act]'); if (!b) return;
+  const ed = b.closest('.ed'); const pid = ed.dataset.pid;
+  const q = s => ed.querySelector(s);
+  const ref = db.collection(COL.players).doc(pid);
+  const p = PLAYERS.find(x => x.id === pid) || {};
+  try{
+    if (b.dataset.act === 'adj'){
+      const d = q('.f-delta').value;
+      if (!d) return;
+      const r = await adminAdjust(pid, d, q('.f-lb').value || 'Ajustement organisation');
+      if (!r.ok) alert(r.error); else { q('.f-delta').value=''; q('.f-lb').value=''; }
+    }
+    else if (b.dataset.act === 'save'){
+      let stats = {};
+      try{ stats = JSON.parse(q('.f-stats').value || '{}'); }
+      catch(e){ alert('Stats : JSON invalide.'); return; }
+      await ref.update({
+        role: q('.f-role').value.trim(),
+        code: q('.f-code').value.trim(),
+        publicNote: q('.f-note').value,
+        stats
+      });
+      b.textContent = 'Enregistré ✓';
+      setTimeout(() => { b.textContent = 'Enregistrer la fiche'; }, 1400);
+    }
+    else if (b.dataset.act === 'toggle'){
+      await ref.update({ active: p.active === false });
+    }
+    else if (b.dataset.act === 'del'){
+      if (!confirm('Supprimer définitivement le dossier de ' + (p.pseudo||pid) + ' ?')) return;
+      await ref.delete();
+    }
+  }catch(e){ alert(e.message); }
+});
+
+/* ============================================================
+   Magasin
+   ============================================================ */
+function saveItems(items){
+  return db.collection(COL.shop).doc('catalog').set({ items }, { merge:true });
+}
+
+document.getElementById('ni-go').addEventListener('click', async () => {
+  const name = document.getElementById('ni-name').value.trim();
+  say('ni-msg','');
+  if (!name){ say('ni-msg','Il faut un nom d’article.','err'); return; }
+  const stock = document.getElementById('ni-stock').value;
+  const it = {
+    id: slugify(name) + '-' + Math.random().toString(36).slice(2,6),
+    name,
+    desc:  document.getElementById('ni-desc').value.trim(),
+    price: Math.round(Number(document.getElementById('ni-price').value)||0),
+    icon:  document.getElementById('ni-icon').value.trim(),
+    img:   document.getElementById('ni-img').value.trim(),
+    hidden:false
+  };
+  if (stock !== '') it.stock = Math.round(Number(stock)||0);
+  try{
+    await saveItems(ITEMS.concat([it]));
+    say('ni-msg','Article ajouté.','ok');
+    ['ni-name','ni-desc','ni-icon','ni-img','ni-stock'].forEach(k => document.getElementById(k).value='');
+  }catch(e){ say('ni-msg', e.message, 'err'); }
+});
+
+function renderItems(){
+  const box = document.getElementById('i-list');
+  if (!ITEMS.length){ box.innerHTML = '<div class="empty">Catalogue vide.</div>'; return; }
+  box.innerHTML = ITEMS.map(i =>
+    '<div class="ed" data-iid="' + esc(i.id) + '">' +
+      '<div class="ed-h"><div class="lst-main">' +
+        '<div class="lst-t">' + (i.icon ? esc(i.icon) + ' ' : '') + esc(i.name) +
+          (i.hidden ? ' <span class="bdg">masqu&eacute;</span>' : '') + '</div>' +
+        '<div class="lst-s">' + esc(i.desc || '') + '</div></div>' +
+        '<div class="price">' + money(i.price) + '</div></div>' +
+      '<div class="row">' +
+        '<div class="field"><label>Prix</label><input class="f-price" type="number" step="1" value="' + Number(i.price||0) + '"></div>' +
+        '<div class="field"><label>Stock (vide = illimit&eacute;)</label><input class="f-stock" type="number" step="1" value="' +
+          (i.stock === undefined || i.stock === null ? '' : Number(i.stock)) + '"></div>' +
+      '</div>' +
+      '<div class="row">' +
+        '<button class="btn btn-sm btn-pri" data-act="save">Enregistrer</button>' +
+        '<button class="btn btn-sm" data-act="hide">' + (i.hidden ? 'Afficher' : 'Masquer') + '</button>' +
+        '<button class="btn btn-sm btn-dng" data-act="del">Retirer</button>' +
+      '</div></div>').join('');
+}
+
+document.getElementById('i-list').addEventListener('click', async ev => {
+  const b = ev.target.closest('button[data-act]'); if (!b) return;
+  const ed = b.closest('.ed'); const iid = ed.dataset.iid;
+  const items = ITEMS.map(x => Object.assign({}, x));
+  const i = items.findIndex(x => x.id === iid); if (i < 0) return;
+  if (b.dataset.act === 'save'){
+    items[i].price = Math.round(Number(ed.querySelector('.f-price').value)||0);
+    const s = ed.querySelector('.f-stock').value;
+    if (s === '') delete items[i].stock; else items[i].stock = Math.round(Number(s)||0);
+  }
+  else if (b.dataset.act === 'hide') items[i].hidden = !items[i].hidden;
+  else if (b.dataset.act === 'del'){
+    if (!confirm('Retirer « ' + (items[i].name||'') + ' » du catalogue ?')) return;
+    items.splice(i,1);
+  }
+  try{ await saveItems(items); }catch(e){ alert(e.message); }
+});
+
+/* ============================================================
+   Commandes & grand livre
+   ============================================================ */
+function renderOrders(rows){
+  const pend = rows.filter(o => o.status !== 'delivered');
+  document.getElementById('o-pend').textContent = pend.length;
+  const box = document.getElementById('o-list');
+  if (!rows.length){ box.innerHTML = '<div class="empty">Aucune commande.</div>'; return; }
+  box.innerHTML = '<ul class="lst">' + rows.slice(0,50).map(o =>
+    '<li><div class="lst-main"><div class="lst-t">' + esc(o.playerName || o.playerId) + ' &mdash; ' +
+      esc(o.itemName || '?') + (o.qty > 1 ? ' ×' + o.qty : '') + '</div>' +
+      '<div class="lst-s">' + esc(when(o.ts)) + ' &middot; ' + money(o.total) + '</div></div>' +
+      (o.status === 'delivered'
+        ? '<span class="bdg bdg-ok">Livr&eacute;e</span>'
+        : '<button class="btn btn-sm btn-pri" data-deliver="' + esc(o._id) + '">Marquer livr&eacute;e</button>') +
+    '</li>').join('') + '</ul>';
+}
+
+document.getElementById('o-list').addEventListener('click', async ev => {
+  const b = ev.target.closest('button[data-deliver]'); if (!b) return;
+  b.disabled = true;
+  try{ await db.collection(COL.orders).doc(b.dataset.deliver).update({ status:'delivered', deliveredAt: Date.now() }); }
+  catch(e){ alert(e.message); b.disabled = false; }
+});
+
+function renderLedger(rows){
+  const box = document.getElementById('l-list');
+  if (!rows.length){ box.innerHTML = '<div class="empty">Aucun mouvement.</div>'; return; }
+  box.innerHTML = '<table class="tbl"><tr><th>Quand</th><th>De</th><th>Vers</th><th>Montant</th><th>Motif</th></tr>' +
+    rows.map(r => '<tr><td class="lst-s">' + esc(when(r.ts)) + '</td>' +
+      '<td>' + esc(r.fromName || r.from) + '</td>' +
+      '<td>' + esc(r.toName || r.to) + '</td>' +
+      '<td class="lst-amt">' + money(r.amount) + '</td>' +
+      '<td class="lst-s">' + esc(r.label || '') + '</td></tr>').join('') + '</table>';
+}
+
+/* ============================================================
+   Journal
+   ============================================================ */
+document.getElementById('nj-go').addEventListener('click', async () => {
+  const title = document.getElementById('nj-title').value.trim();
+  const text  = document.getElementById('nj-text').value.trim();
+  say('nj-msg','');
+  if (!title && !text){ say('nj-msg','Rien à publier.','err'); return; }
+  try{
+    await db.collection(COL.journal).doc('public').set({
+      entries: firebase.firestore.FieldValue.arrayUnion({
+        id: 'e' + Date.now(), title, text, ts: Date.now()
+      })
+    }, { merge:true });
+    say('nj-msg','Publié.','ok');
+    document.getElementById('nj-title').value = '';
+    document.getElementById('nj-text').value  = '';
+  }catch(e){ say('nj-msg', e.message, 'err'); }
+});
+
+let JENTRIES = [];
+function renderJournal(entries){
+  JENTRIES = entries;
+  const box = document.getElementById('j-list');
+  const rows = entries.slice().sort((a,b) => (b.ts||0)-(a.ts||0));
+  if (!rows.length){ box.innerHTML = '<div class="empty">Rien de publi&eacute;.</div>'; return; }
+  box.innerHTML = rows.map(e =>
+    '<div class="jr"><div class="jr-ts">' + esc(when(e.ts)) +
+      ' <button class="btn btn-sm btn-dng" data-jdel="' + esc(e.id) + '">Retirer</button></div>' +
+      '<div class="jr-t">' + esc(e.title || '') + '</div>' +
+      '<div class="jr-x">' + esc(e.text || '') + '</div></div>').join('');
+}
+
+document.getElementById('j-list').addEventListener('click', async ev => {
+  const b = ev.target.closest('button[data-jdel]'); if (!b) return;
+  if (!confirm('Retirer cette publication ?')) return;
+  try{
+    await db.collection(COL.journal).doc('public')
+      .set({ entries: JENTRIES.filter(e => e.id !== b.dataset.jdel) }, { merge:true });
+  }catch(e){ alert(e.message); }
+});
+
+/* ============================================================
+   Carte
+   ============================================================ */
+function initMap(){
+  if (AMAP){ AMAP.invalidateSize(); return; }
+  AMAP = L.map('amap').setView(GAME.mapCenter || [48.8566,2.3522], GAME.mapZoom || 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { maxZoom:19, attribution:'&copy; OpenStreetMap' }).addTo(AMAP);
+  poiLayer = L.layerGroup().addTo(AMAP);
+  posLayer = L.layerGroup().addTo(AMAP);
+  AMAP.on('click', async e => {
+    const name = document.getElementById('nm-name').value.trim();
+    if (!name){ say('am-msg','Donne d’abord un nom au point.','err'); return; }
+    const poi = {
+      id: 'p' + Date.now(), name,
+      desc: document.getElementById('nm-desc').value.trim(),
+      lat: Number(e.latlng.lat.toFixed(6)), lng: Number(e.latlng.lng.toFixed(6))
+    };
+    try{
+      await db.collection(COL.map).doc('data').set({ pois: POIS.concat([poi]) }, { merge:true });
+      say('am-msg','Point « ' + name + ' » posé.','ok');
+      document.getElementById('nm-name').value = '';
+      document.getElementById('nm-desc').value = '';
+    }catch(err){ say('am-msg', err.message, 'err'); }
+  });
+  drawPois(); drawPositions();
+}
+
+function drawPois(){
+  if (!poiLayer) return;
+  poiLayer.clearLayers();
+  POIS.forEach(p => {
+    if (typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
+    L.marker([p.lat,p.lng], { icon: L.divIcon({ className:'', html:'<div class="poi-dot"></div>', iconSize:[13,13] }) })
+     .bindPopup('<strong>' + esc(p.name||'') + '</strong>' + (p.desc ? '<br>' + esc(p.desc) : ''))
+     .addTo(poiLayer);
+  });
+}
+
+function drawPositions(){
+  if (!posLayer) return;
+  posLayer.clearLayers();
+  PLAYERS.forEach(p => {
+    if (!p.pos || typeof p.pos.lat !== 'number') return;
+    L.marker([p.pos.lat,p.pos.lng], { icon: L.divIcon({ className:'', html:'<div class="me-dot"></div>', iconSize:[16,16] }) })
+     .bindPopup('<strong>' + esc(p.pseudo||p.id) + '</strong><br>' + esc(when(p.pos.ts)))
+     .addTo(posLayer);
+  });
+}
+
+function renderPoiList(){
+  const box = document.getElementById('m-list');
+  if (!POIS.length){ box.innerHTML = '<div class="empty">Aucun point.</div>'; return; }
+  box.innerHTML = '<ul class="lst">' + POIS.map(p =>
+    '<li><div class="lst-main"><div class="lst-t">' + esc(p.name||'') + '</div>' +
+      '<div class="lst-s mono">' + Number(p.lat).toFixed(5) + ', ' + Number(p.lng).toFixed(5) +
+      (p.desc ? ' &middot; ' + esc(p.desc) : '') + '</div></div>' +
+      '<button class="btn btn-sm btn-dng" data-pdel="' + esc(p.id) + '">Retirer</button></li>').join('') + '</ul>';
+}
+
+document.getElementById('m-list').addEventListener('click', async ev => {
+  const b = ev.target.closest('button[data-pdel]'); if (!b) return;
+  try{
+    await db.collection(COL.map).doc('data')
+      .set({ pois: POIS.filter(p => p.id !== b.dataset.pdel) }, { merge:true });
+  }catch(e){ alert(e.message); }
+});
+
+/* ============================================================
+   Réglages
+   ============================================================ */
+function fillCfg(){
+  const v = (id,val) => document.getElementById(id).value = (val === undefined || val === null) ? '' : val;
+  v('c-name',  GAME.gameName);
+  v('c-tag',   GAME.tagline);
+  v('c-cur',   GAME.currency);
+  v('c-sym',   GAME.currencySym);
+  v('c-start', GAME.startBalance);
+  v('c-lat',  (GAME.mapCenter||[])[0]);
+  v('c-lng',  (GAME.mapCenter||[])[1]);
+  v('c-zoom',  GAME.mapZoom);
+  v('c-rules', GAME.rules || '');
+}
+
+document.getElementById('c-go').addEventListener('click', async () => {
+  const num = id => Number(document.getElementById(id).value);
+  const val = id => document.getElementById(id).value.trim();
+  say('cfg-msg','');
+  try{
+    await db.collection(COL.config).doc('game').set({
+      gameName:   val('c-name'),
+      tagline:    val('c-tag'),
+      currency:   val('c-cur'),
+      currencySym:val('c-sym'),
+      startBalance: Math.round(num('c-start')||0),
+      mapCenter: [num('c-lat')||0, num('c-lng')||0],
+      mapZoom:   Math.round(num('c-zoom')||15),
+      rules:     document.getElementById('c-rules').value
+    }, { merge:true });
+    await loadGame();
+    say('cfg-msg','Réglages enregistrés. Les joueurs les reçoivent au prochain chargement.','ok');
+  }catch(e){ say('cfg-msg', e.message, 'err'); }
+});
+</script>
+</body>
+</html>
