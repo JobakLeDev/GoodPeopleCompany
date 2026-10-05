@@ -1,5 +1,5 @@
 /* ============================================================
-   Good People Company — socle commun
+   Goodfolks Industries — socle commun
    Charge par index.html, perso.html, admin.html
    Depend de : firebase-app-compat + firebase-firestore-compat, common/config.js
 

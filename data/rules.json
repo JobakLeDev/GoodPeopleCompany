@@ -2,7 +2,7 @@
   "_comment": "Règles affichées par défaut. L'orga peut tout remplacer en jeu depuis admin.html → Réglages (champ Règles), qui écrit /config/game.rules et prend le dessus sur ce fichier. Markdown léger : ### Titre, - liste, **gras**. Les passages entre crochets sont à remplir avant le week-end.",
   "rules": [
     "### Le principe",
-    "Vous êtes les **actionnaires de la Good People Company**. Une décision doit être prise, et elle ne sera pas prise par la direction : elle sera prise par vous, **dimanche matin**, en assemblée.",
+    "Vous êtes les **actionnaires de Goodfolks Industries**. Une décision doit être prise, et elle ne sera pas prise par la direction : elle sera prise par vous, **dimanche matin**, en assemblée.",
     "Jusque-là, vous avez tout le week-end pour convaincre, promettre, acheter, revendre, trahir. Ce que vous pèserez au moment du vote, c'est ce que vous aurez su réunir.",
     "",
     "### Vos parts : deux formes",

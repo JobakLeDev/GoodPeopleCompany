@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // ============================================================
-//  Good People Company — règles Firestore
+//  Goodfolks Industries — règles Firestore
 //  À publier dans la console Firebase :
 //  Firestore Database → Règles → coller → Publier
 // ============================================================

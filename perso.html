@@ -3,20 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#141b23">
-<title>Mon compte — Good People Company</title>
+<meta name="theme-color" content="#1b3a57">
+<title>Mon compte — Goodfolks Industries</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="icon" href="img/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 <link rel="stylesheet" href="common/style.css">
 </head>
 <body class="has-tabbar">
 
 <div class="topbar">
   <div class="brand">
-    <div class="brand-mark">GP</div>
-    <div><span class="brand-txt" id="h-name">Good People Co.</span></div>
+    <img class="brand-mark" src="img/goodfolks-mark.png" alt="" width="34" height="34">
+    <div><span class="brand-txt" id="h-name">Goodfolks</span></div>
   </div>
   <div class="sp"></div>
   <div class="who">
@@ -245,7 +247,7 @@ document.getElementById('h-out').addEventListener('click', () => {
    ============================================================ */
 (async function(){
   await loadGame();
-  document.getElementById('h-name').textContent = GAME.gameName || 'Good People Co.';
+  document.getElementById('h-name').textContent = GAME.gameName || 'Goodfolks';
   document.getElementById('w-unit').textContent = GAME.units || 'parts';
   document.title = 'Mon compte — ' + (GAME.gameName || '');
 

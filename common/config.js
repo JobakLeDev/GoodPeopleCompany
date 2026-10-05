@@ -1,5 +1,5 @@
 /* ============================================================
-   Good People Company — configuration
+   Goodfolks Industries — configuration
    REMPLACE firebaseConfig par les valeurs de TON projet :
    console.firebase.google.com -> Parametres du projet
    -> « Vos applications » -> Application Web -> Configuration du SDK
@@ -19,8 +19,8 @@ window.GPC_ADMIN_CODE = "1234";
 
 /* Reglages de partie (surchargeables en direct via /config/game dans Firestore) */
 window.GPC_DEFAULTS = {
-  gameName:   "Good People Company",
-  tagline:    "Assemblée générale extraordinaire",
+  gameName:   "Goodfolks Industries",
+  tagline:    "so much better together",
 
   /* Vocabulaire de la part - adapte-le a ton univers */
   unit:       "part",

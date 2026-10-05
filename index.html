@@ -3,19 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0d1117">
-<title>Good People Company</title>
+<meta name="theme-color" content="#1b3a57">
+<title>Goodfolks Industries</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap">
+<link rel="icon" href="img/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 <link rel="stylesheet" href="common/style.css">
 <style>
-  .hero{text-align:center;padding:38px 16px 26px}
-  .hero .brand{justify-content:center;margin-bottom:18px}
-  .hero .brand-mark{width:54px;height:54px;border-radius:14px;font-size:22px}
-  .hero h1{font-size:1.75rem;margin-bottom:6px}
+  .hero{text-align:center;padding:34px 16px 24px}
+  .hero .logo-full{width:min(370px,86%);margin-bottom:20px}
+  .hero h1{font-size:1.75rem;margin-bottom:6px;color:var(--navy)}
   .hero p{color:var(--td);max-width:470px;margin:0 auto}
-  .motto{margin-top:22px;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--tf)}
+  .hero .tagline{margin-top:4px}
+  .motto{margin-top:22px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--tf);font-weight:600}
   .feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
   .feat div{background:var(--bg2);border:1px solid var(--b);border-radius:var(--r-sm);
     padding:12px;text-align:center;font-size:12px;color:var(--td);font-weight:600}
@@ -28,14 +31,11 @@
 <div class="wrap">
 
   <div class="hero">
-    <div class="brand">
-      <div class="brand-mark">GP</div>
-      <div>
-        <span class="brand-txt" id="h-name">Good People Company</span>
-        <span class="brand-sub" id="h-tag">Assembl&eacute;e g&eacute;n&eacute;rale extraordinaire</span>
-      </div>
-    </div>
+    <img class="logo-full" src="img/goodfolks-logo.png" width="760" height="269"
+         alt="Goodfolks Industries &mdash; so much better together">
+    <h1 id="h-name" hidden>Goodfolks Industries</h1>
     <h1>Bienvenue, actionnaire.</h1>
+    <div class="tagline" id="h-tag">Assembl&eacute;e g&eacute;n&eacute;rale extraordinaire</div>
     <p>Identifie-toi pour consulter tes parts, le registre, l&rsquo;ordre du jour
        et, le moment venu, d&eacute;poser ton bulletin.</p>
     <div class="motto">Une part &middot; Une voix &middot; Aucun regret</div>
@@ -82,7 +82,7 @@
   </div>
 
   <footer>
-    Good People Company &mdash; document interne. Toute reproduction est encourag&eacute;e.<br>
+    Goodfolks Industries &mdash; document interne. Toute reproduction est encourag&eacute;e.<br>
     <a href="admin.html">Acc&egrave;s guichet</a>
   </footer>
 
@@ -102,9 +102,8 @@
   if (!logout && s && s.id){ location.replace('perso.html'); return; }
 
   await loadGame();
-  document.getElementById('h-name').textContent = GAME.gameName || 'Good People Company';
   document.getElementById('h-tag').textContent  = GAME.tagline  || '';
-  document.title = GAME.gameName || 'Good People Company';
+  document.title = GAME.gameName || 'Goodfolks Industries';
 
   const form = document.getElementById('login-form');
   const btn  = document.getElementById('f-go');
