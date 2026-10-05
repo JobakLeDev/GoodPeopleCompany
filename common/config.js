@@ -1,8 +1,8 @@
 /* ============================================================
    Good People Company — configuration
-   ⚠️ REMPLACE firebaseConfig par les valeurs de TON projet :
-   console.firebase.google.com → ⚙ Paramètres du projet
-   → « Vos applications » → Application Web → Configuration du SDK
+   REMPLACE firebaseConfig par les valeurs de TON projet :
+   console.firebase.google.com -> Parametres du projet
+   -> « Vos applications » -> Application Web -> Configuration du SDK
    ============================================================ */
 
 window.firebaseConfig = {
@@ -14,17 +14,26 @@ window.firebaseConfig = {
   appId:             "A_REMPLACER"
 };
 
-/* Code d'accès de l'organisation (page admin.html) */
+/* Code d'acces du guichet / console organisation (admin.html) */
 window.GPC_ADMIN_CODE = "1234";
 
-/* Réglages du jeu (surchargeables en direct via /config/game dans Firestore) */
+/* Reglages de partie (surchargeables en direct via /config/game dans Firestore) */
 window.GPC_DEFAULTS = {
   gameName:   "Good People Company",
-  tagline:    "Programme d'intégration citoyenne",
-  currency:   "crédits",
-  currencySym:"\u20A2",
-  startBalance: 500,
-  /* Centre de la carte au 1er affichage : [lat, lng] + zoom */
+  tagline:    "Assemblée générale extraordinaire",
+
+  /* Vocabulaire de la part - adapte-le a ton univers */
+  unit:       "part",
+  units:      "parts",
+
+  /* Dotation par defaut d'un nouvel actionnaire */
+  startShares: 20,
+
+  /* Nombre d'actionnaires visibles dans le registre public (0 = aucun) */
+  registryTop: 10,
+
+  /* Centre de la carte au 1er affichage : [lat, lng] + zoom.
+     A regler sur l'hebergement reel depuis la console -> Reglages. */
   mapCenter:  [48.8566, 2.3522],
-  mapZoom:    15
+  mapZoom:    17
 };

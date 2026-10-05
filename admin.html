@@ -4,37 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#141b23">
-<title>Organisation — Good People Company</title>
+<title>Guichet — Good People Company</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="common/style.css">
-<style>
-  .atabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
-  .atabs button{padding:8px 13px;font-size:.86rem;font-weight:650;cursor:pointer;
-    background:var(--pnl);color:var(--td);border:1px solid var(--b);border-radius:999px;font-family:inherit}
-  .atabs button.on{background:var(--ac);color:#06130d;border-color:transparent}
-  .ed{background:var(--bg2);border:1px solid var(--b);border-radius:var(--r-sm);padding:12px;margin:0 0 10px}
-  .ed-h{display:flex;align-items:center;gap:8px;margin:0 0 8px}
-  .ed-h .lst-t{flex:1}
-  .mini{font-size:12px;color:var(--tf);margin:4px 0 0}
-  #amap{height:380px;border-radius:var(--r-sm);border:1px solid var(--b);z-index:0}
-  .gate{max-width:360px;margin:12vh auto}
-</style>
 </head>
 <body>
 
-<!-- ============ Verrou ============ -->
+<!-- ================= Verrou ================= -->
 <div id="gate" class="gate wrap">
   <div class="pnl">
-    <div class="pnl-h"><span class="ic">&#128274;</span> Acc&egrave;s organisation</div>
+    <div class="pnl-h"><span class="ic">&#128274;</span> Acc&egrave;s guichet</div>
     <div class="pnl-b">
       <div id="g-msg"></div>
       <form id="g-form">
         <div class="field">
-          <label for="g-code">Code organisation</label>
-          <input id="g-code" type="password" inputmode="numeric" class="mono" autofocus>
+          <label for="gate-code">Code organisation</label>
+          <input id="gate-code" type="password" inputmode="numeric" class="mono" autofocus>
         </div>
         <button class="btn btn-pri btn-blk" type="submit">D&eacute;verrouiller</button>
       </form>
@@ -43,12 +31,12 @@
   </div>
 </div>
 
-<!-- ============ Console ============ -->
+<!-- ================= Console ================= -->
 <div id="console" style="display:none">
 <div class="topbar">
   <div class="brand">
     <div class="brand-mark">GP</div>
-    <div><span class="brand-txt">Console organisation</span>
+    <div><span class="brand-txt">Guichet &amp; direction</span>
          <span class="brand-sub" id="h-camp">&nbsp;</span></div>
   </div>
   <div class="sp"></div>
@@ -57,33 +45,132 @@
 
 <div class="wrap-wide">
   <div class="atabs" id="atabs">
-    <button data-sec="players" class="on">&#128101; Joueurs</button>
+    <button data-sec="guichet" class="on">&#127974; Guichet<span class="n" id="n-req" style="display:none">0</span></button>
+    <button data-sec="actionnaires">&#128101; Actionnaires</button>
+    <button data-sec="scrutin">&#128499; Scrutin</button>
     <button data-sec="shop">&#128722; Magasin</button>
-    <button data-sec="orders">&#128230; Commandes</button>
+    <button data-sec="orders">&#128230; Commandes<span class="n" id="n-ord" style="display:none">0</span></button>
     <button data-sec="journal">&#128240; Journal</button>
     <button data-sec="map">&#128506; Carte</button>
     <button data-sec="cfg">&#9881; R&eacute;glages</button>
   </div>
 
-  <!-- ---------- JOUEURS ---------- -->
-  <section class="sec on" id="sec-players">
+  <!-- ---------- GUICHET ---------- -->
+  <section class="sec on" id="sec-guichet">
     <div class="pnl">
-      <div class="pnl-h"><span class="ic">&#10133;</span> Cr&eacute;er un agent</div>
+      <div class="pnl-h"><span class="ic">&#128202;</span> O&ugrave; est le capital</div>
+      <div class="pnl-b">
+        <div class="split" id="t-split"></div>
+        <div class="split-key" id="t-key"></div>
+        <hr class="hr">
+        <div class="stat-grid" id="t-stats"></div>
+        <p class="mini">Invariant&nbsp;: capital &eacute;mis = en banque + en jetons + tr&eacute;sorerie.
+           Un &eacute;cart signale une saisie manuelle dans la console Firebase.</p>
+      </div>
+    </div>
+
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#9203;</span> File d&rsquo;attente <span class="sp"></span>
+        <span class="bdg bdg-warn" id="q-count">0</span></div>
+      <div class="pnl-b" id="q-list"><div class="empty">Personne au guichet.</div></div>
+    </div>
+
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#128273;</span> Op&eacute;ration directe</div>
+      <div class="pnl-b">
+        <div id="d-msg"></div>
+        <div class="row">
+          <div class="field"><label>Actionnaire</label>
+            <select id="d-who"><option value="">Chargement&hellip;</option></select></div>
+          <div class="field"><label>Nombre de jetons</label>
+            <input id="d-qty" type="number" min="1" step="1" inputmode="numeric"></div>
+        </div>
+        <div class="row">
+          <button class="btn btn-gold" id="d-wd">&#11014; Retirer (compte &rarr; jetons)</button>
+          <button class="btn btn-pri" id="d-dp">&#11015; D&eacute;poser (jetons &rarr; compte)</button>
+        </div>
+        <p class="mini">Pour quelqu&rsquo;un qui arrive sans avoir pos&eacute; de demande.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- ACTIONNAIRES ---------- -->
+  <section class="sec" id="sec-actionnaires">
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#128228;</span> Cr&eacute;ation en s&eacute;rie</div>
+      <div class="pnl-b">
+        <div id="bulk-msg"></div>
+        <div class="field">
+          <label>Un actionnaire par ligne. Format&nbsp;: <span class="mono">Nom</span>
+            ou <span class="mono">Nom;code;r&ocirc;le;parts</span></label>
+          <textarea id="bulk-txt" style="min-height:150px" placeholder="Camille Dubreuil&#10;Ana&iuml;s Berger;4821;Fonds Mercure&#10;Victor Pann;;Petit porteur;5"></textarea>
+        </div>
+        <button class="btn btn-pri" id="bulk-go">Cr&eacute;er tous les dossiers</button>
+        <p class="mini">Code vide = tir&eacute; au hasard. Parts vides = dotation par d&eacute;faut
+          (<span id="bulk-def"></span>), &eacute;mises &agrave; la cr&eacute;ation.</p>
+        <div id="bulk-out"></div>
+      </div>
+    </div>
+
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#10133;</span> Cr&eacute;er un actionnaire</div>
       <div class="pnl-b">
         <div id="np-msg"></div>
         <div class="row">
-          <div class="field"><label>Nom d&rsquo;agent</label><input id="np-pseudo" placeholder="Camille Dubreuil"></div>
-          <div class="field"><label>Code d&rsquo;acc&egrave;s</label><input id="np-code" class="mono" placeholder="laisser vide = al&eacute;atoire"></div>
-          <div class="field"><label>R&ocirc;le / service</label><input id="np-role" placeholder="Service logistique"></div>
-          <div class="field"><label>Solde de d&eacute;part</label><input id="np-bal" type="number" step="1"></div>
+          <div class="field"><label>Nom</label><input id="np-pseudo" placeholder="Camille Dubreuil"></div>
+          <div class="field"><label>Code</label><input id="np-code" class="mono" placeholder="vide = al&eacute;atoire"></div>
+          <div class="field"><label>R&ocirc;le / qualit&eacute;</label><input id="np-role" placeholder="Fonds Mercure"></div>
+          <div class="field"><label>Parts de d&eacute;part</label><input id="np-sh" type="number" step="1"></div>
         </div>
         <button class="btn btn-pri" id="np-go">Cr&eacute;er le dossier</button>
-        <p class="mini">L&rsquo;identifiant est d&eacute;duit du nom (&laquo;&nbsp;Camille Dubreuil&nbsp;&raquo; &rarr; <span class="mono">camille-dubreuil</span>). Le joueur se connecte avec son nom + son code.</p>
       </div>
     </div>
+
     <div class="pnl">
-      <div class="pnl-h"><span class="ic">&#128101;</span> Agents <span class="bdg" id="p-count">0</span></div>
+      <div class="pnl-h"><span class="ic">&#128101;</span> Registre complet <span class="sp"></span>
+        <span class="bdg" id="p-count">0</span>
+        <button class="btn btn-sm" id="p-print">&#128424; Codes</button></div>
       <div class="pnl-b" id="p-list"><div class="empty">Chargement&hellip;</div></div>
+    </div>
+  </section>
+
+  <!-- ---------- SCRUTIN ---------- -->
+  <section class="sec" id="sec-scrutin">
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#128499;</span> La d&eacute;cision <span class="sp"></span>
+        <span class="bdg" id="v-st">&mdash;</span></div>
+      <div class="pnl-b">
+        <div id="v-msg"></div>
+        <div class="field"><label>Question soumise &agrave; l&rsquo;assembl&eacute;e</label>
+          <input id="v-q" placeholder="Faut-il vendre la filiale de Saint-Yrieix&nbsp;?"></div>
+        <div class="field"><label>Expos&eacute; des motifs (optionnel)</label>
+          <textarea id="v-d" placeholder="Ce que les actionnaires doivent savoir avant de trancher."></textarea></div>
+        <div class="field"><label>Options &mdash; une par ligne, format
+          <span class="mono">Intitul&eacute;;pr&eacute;cision</span></label>
+          <textarea id="v-opts" style="min-height:120px" placeholder="Vendre;Encaisser 40&nbsp;% du capital, perdre l&rsquo;usine&#10;Refuser;Garder l&rsquo;usine, affronter l&rsquo;hiver&#10;Abstention"></textarea></div>
+        <div class="row">
+          <div class="field"><label>Cl&ocirc;ture (= dernier d&eacute;p&ocirc;t de jetons)</label>
+            <input id="v-close" type="datetime-local"></div>
+        </div>
+        <div class="row">
+          <button class="btn" id="v-save">Enregistrer le brouillon</button>
+          <button class="btn btn-pri" id="v-open">&#9654; Ouvrir le scrutin</button>
+          <button class="btn btn-dng" id="v-tally">&#9633; Clore et d&eacute;pouiller</button>
+        </div>
+        <p class="mini">Le d&eacute;pouillement pond&egrave;re chaque bulletin par les parts
+          <strong>en banque &agrave; cet instant</strong>. Les jetons non d&eacute;pos&eacute;s ne comptent pas.
+          Clore est r&eacute;versible&nbsp;: &laquo;&nbsp;Ouvrir&nbsp;&raquo; relance le scrutin et efface le r&eacute;sultat.</p>
+      </div>
+    </div>
+
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#128101;</span> Participation en direct</div>
+      <div class="pnl-b" id="v-part"><div class="empty">Aucun scrutin ouvert.</div></div>
+    </div>
+
+    <div class="pnl" id="v-res-pnl" style="display:none">
+      <div class="pnl-h"><span class="ic">&#127942;</span> R&eacute;sultat</div>
+      <div class="pnl-b" id="v-res"></div>
     </div>
   </section>
 
@@ -94,13 +181,13 @@
       <div class="pnl-b">
         <div id="ni-msg"></div>
         <div class="row">
-          <div class="field"><label>Nom</label><input id="ni-name" placeholder="Ration de survie"></div>
-          <div class="field"><label>Prix</label><input id="ni-price" type="number" step="1" value="50"></div>
+          <div class="field"><label>Nom</label><input id="ni-name" placeholder="Si&egrave;ge au conseil"></div>
+          <div class="field"><label>Prix (en parts)</label><input id="ni-price" type="number" step="1" value="5"></div>
           <div class="field"><label>Stock (vide = illimit&eacute;)</label><input id="ni-stock" type="number" step="1"></div>
-          <div class="field"><label>Emoji / ic&ocirc;ne</label><input id="ni-icon" placeholder="&#129362;"></div>
+          <div class="field"><label>Emoji</label><input id="ni-icon" placeholder="&#127942;"></div>
         </div>
-        <div class="field"><label>Description</label><input id="ni-desc" placeholder="Un repas complet, ou presque."></div>
-        <div class="field"><label>Image (URL, optionnel)</label><input id="ni-img" placeholder="img/ration.jpg"></div>
+        <div class="field"><label>Description</label><input id="ni-desc"></div>
+        <div class="field"><label>Image (URL, optionnel)</label><input id="ni-img" placeholder="img/siege.jpg"></div>
         <button class="btn btn-pri" id="ni-go">Ajouter au catalogue</button>
       </div>
     </div>
@@ -113,11 +200,12 @@
   <!-- ---------- COMMANDES ---------- -->
   <section class="sec" id="sec-orders">
     <div class="pnl">
-      <div class="pnl-h"><span class="ic">&#128230;</span> &Agrave; livrer <span class="bdg bdg-warn" id="o-pend">0</span></div>
+      <div class="pnl-h"><span class="ic">&#128230;</span> &Agrave; remettre <span class="sp"></span>
+        <span class="bdg bdg-warn" id="o-pend">0</span></div>
       <div class="pnl-b" id="o-list"><div class="empty">Aucune commande.</div></div>
     </div>
     <div class="pnl">
-      <div class="pnl-h"><span class="ic">&#128209;</span> Derniers mouvements</div>
+      <div class="pnl-h"><span class="ic">&#128209;</span> Grand livre</div>
       <div class="pnl-b scroll-x" id="l-list"><div class="empty">Chargement&hellip;</div></div>
     </div>
   </section>
@@ -125,16 +213,16 @@
   <!-- ---------- JOURNAL ---------- -->
   <section class="sec" id="sec-journal">
     <div class="pnl">
-      <div class="pnl-h"><span class="ic">&#128240;</span> Publier au journal public</div>
+      <div class="pnl-h"><span class="ic">&#128240;</span> Publier un communiqu&eacute;</div>
       <div class="pnl-b">
         <div id="nj-msg"></div>
         <div class="field"><label>Titre</label><input id="nj-title" placeholder="Communiqu&eacute; n&deg;4"></div>
-        <div class="field"><label>Texte</label><textarea id="nj-text" placeholder="Visible de tous les agents."></textarea></div>
+        <div class="field"><label>Texte</label><textarea id="nj-text" placeholder="Visible de tous les actionnaires."></textarea></div>
         <button class="btn btn-pri" id="nj-go">Publier</button>
       </div>
     </div>
     <div class="pnl">
-      <div class="pnl-h"><span class="ic">&#128220;</span> Publications</div>
+      <div class="pnl-h"><span class="ic">&#128220;</span> Communiqu&eacute;s</div>
       <div class="pnl-b" id="j-list"><div class="empty">Rien de publi&eacute;.</div></div>
     </div>
   </section>
@@ -147,10 +235,11 @@
         <div id="am-msg"></div>
         <div id="amap"></div>
         <div class="row" style="margin-top:10px">
-          <div class="field"><label>Nom du point</label><input id="nm-name" placeholder="Poste de commandement"></div>
-          <div class="field"><label>Description</label><input id="nm-desc" placeholder="Ouvert 24&nbsp;h"></div>
+          <div class="field"><label>Nom du point</label><input id="nm-name" placeholder="Salle de l&rsquo;assembl&eacute;e"></div>
+          <div class="field"><label>Description</label><input id="nm-desc" placeholder="Grange, b&acirc;timent nord"></div>
         </div>
-        <p class="mini">Puis clique sur la carte &agrave; l&rsquo;endroit voulu. Les positions partag&eacute;es par les joueurs apparaissent en bleu.</p>
+        <p class="mini">Nomme d&rsquo;abord le point, puis clique l&rsquo;endroit sur la carte.
+          Pense &agrave; r&eacute;gler le centre de la carte sur l&rsquo;h&eacute;bergement (onglet R&eacute;glages).</p>
       </div>
     </div>
     <div class="pnl">
@@ -170,21 +259,52 @@
           <div class="field"><label>Accroche</label><input id="c-tag"></div>
         </div>
         <div class="row">
-          <div class="field"><label>Monnaie (nom)</label><input id="c-cur"></div>
-          <div class="field"><label>Symbole</label><input id="c-sym"></div>
-          <div class="field"><label>Solde de d&eacute;part</label><input id="c-start" type="number" step="1"></div>
+          <div class="field"><label>Unit&eacute; (singulier)</label><input id="c-unit"></div>
+          <div class="field"><label>Unit&eacute; (pluriel)</label><input id="c-units"></div>
+          <div class="field"><label>Dotation de d&eacute;part</label><input id="c-start" type="number" step="1"></div>
+          <div class="field"><label>Registre public&nbsp;: top N</label><input id="c-topn" type="number" step="1" min="0"></div>
         </div>
         <div class="row">
-          <div class="field"><label>Latitude du centre</label><input id="c-lat" type="number" step="0.00001"></div>
-          <div class="field"><label>Longitude du centre</label><input id="c-lng" type="number" step="0.00001"></div>
+          <div class="field"><label>Latitude du centre</label><input id="c-lat" type="number" step="0.000001"></div>
+          <div class="field"><label>Longitude du centre</label><input id="c-lng" type="number" step="0.000001"></div>
           <div class="field"><label>Zoom</label><input id="c-zoom" type="number" step="1" min="1" max="19"></div>
         </div>
         <div class="field">
-          <label>R&egrave;glement (markdown l&eacute;ger&nbsp;: <span class="mono">### Titre</span>, <span class="mono">- liste</span>, <span class="mono">**gras**</span>)</label>
-          <textarea id="c-rules" style="min-height:220px"></textarea>
+          <label>R&egrave;gles du jeu (markdown l&eacute;ger&nbsp;: <span class="mono">### Titre</span>,
+            <span class="mono">- liste</span>, <span class="mono">**gras**</span>)</label>
+          <textarea id="c-rules" style="min-height:240px"></textarea>
         </div>
         <button class="btn btn-pri" id="c-go">Enregistrer les r&eacute;glages</button>
-        <p class="mini">Laisser le r&egrave;glement vide fait retomber sur <span class="mono">data/rules.json</span>.</p>
+        <p class="mini">R&egrave;gles vides = on retombe sur <span class="mono">data/rules.json</span>.</p>
+      </div>
+    </div>
+
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#127974;</span> Tr&eacute;sorerie de la compagnie</div>
+      <div class="pnl-b">
+        <div id="tr-msg"></div>
+        <div class="row">
+          <div class="field"><label>Parts &agrave; &eacute;mettre vers la tr&eacute;sorerie</label>
+            <input id="tr-qty" type="number" min="1" step="1"></div>
+        </div>
+        <button class="btn btn-gold" id="tr-go">&#128176; &Eacute;mettre vers la tr&eacute;sorerie</button>
+        <p class="mini">Cr&eacute;e des parts nouvelles non attribu&eacute;es, que tu pourras ensuite
+          <strong>attribuer</strong> &agrave; un actionnaire sans diluer personne.
+          L&rsquo;&eacute;mission directe vers un actionnaire, elle, dilue tout le monde.</p>
+      </div>
+    </div>
+
+    <div class="pnl">
+      <div class="pnl-h"><span class="ic">&#9888;</span> Fin de partie</div>
+      <div class="pnl-b">
+        <p style="margin:0 0 12px;color:var(--td);font-size:.92rem">
+          Apr&egrave;s le week-end, retourne dans la console Firebase &rarr; Firestore &rarr; R&egrave;gles
+          et remplace tout par <span class="mono">allow read, write: if false;</span>.
+          Les comptes restent lisibles par qui conna&icirc;t l&rsquo;adresse du site tant que les
+          r&egrave;gles sont ouvertes.
+        </p>
+        <button class="btn btn-dng" id="rz-ballots">Effacer tous les bulletins</button>
+        <p class="mini">Pour rejouer un scrutin de z&eacute;ro. N&rsquo;affecte ni les parts ni le grand livre.</p>
       </div>
     </div>
   </section>
@@ -198,31 +318,31 @@
 <script src="common/app.js"></script>
 <script>
 /* ============================================================
-   admin.html — console organisation.
-   ⚠️ Le code ci-dessous n'est qu'un verrou de confort : la sécurité
-   réelle dépend de firestore.rules (voir README).
+   admin.html — guichet et direction.
+   ⚠️ Le code d'accès est un verrou de confort : la sécurité réelle
+   dépend de firestore.rules (voir README).
    ============================================================ */
 const GATE_KEY = 'gpc_admin';
-let PLAYERS = [], ITEMS = [], AMAP = null, poiLayer = null, posLayer = null, POIS = [];
+let PLAYERS = [], ITEMS = [], REQS = [], POIS = [], VOTE = null, JENTRIES = [];
+let TRES = { issued:0, circulating:0, company:0 };
+let AMAP = null, poiLayer = null;
 
 /* ---- verrou ---- */
 document.getElementById('g-form').addEventListener('submit', ev => {
   ev.preventDefault();
-  const v = document.getElementById('g-code').value.trim();
-  if (v === String(window.GPC_ADMIN_CODE)){
+  if (document.getElementById('gate-code').value.trim() === String(window.GPC_ADMIN_CODE)){
     try{ sessionStorage.setItem(GATE_KEY,'1'); }catch(e){}
-    open_();
+    unlock();
   } else say('g-msg','Code incorrect.','err');
 });
-try{ if (sessionStorage.getItem(GATE_KEY) === '1') open_(); }catch(e){}
+try{ if (sessionStorage.getItem(GATE_KEY) === '1') unlock(); }catch(e){}
 
-function open_(){
+function unlock(){
   document.getElementById('gate').style.display = 'none';
   document.getElementById('console').style.display = '';
   boot();
 }
 
-/* ---- onglets ---- */
 document.getElementById('atabs').addEventListener('click', ev => {
   const b = ev.target.closest('button[data-sec]'); if (!b) return;
   document.querySelectorAll('.sec').forEach(s => s.classList.toggle('on', s.id === 'sec-' + b.dataset.sec));
@@ -238,27 +358,38 @@ async function boot(){
   if (booted) return; booted = true;
   await loadGame();
   document.getElementById('h-camp').textContent = GAME.gameName || '';
+  document.getElementById('bulk-def').textContent = num(GAME.startShares) + ' ' + (GAME.units||'parts');
   fillCfg();
 
   db.collection(COL.players).onSnapshot(qs => {
     PLAYERS = qs.docs.map(d => Object.assign({ id:d.id }, d.data()))
       .sort((a,b) => String(a.pseudo||a.id).localeCompare(String(b.pseudo||b.id),'fr'));
     document.getElementById('p-count').textContent = PLAYERS.length;
-    renderPlayers(); drawPositions();
+    renderPlayers(); renderWhoSel(); renderTreasury(); renderVoteAdmin();
+  });
+
+  db.collection(COL.config).doc('treasury').onSnapshot(s => {
+    const d = s.exists ? s.data() : {};
+    TRES = { issued:Number(d.issued)||0, circulating:Number(d.circulating)||0,
+             company:Number(d.company)||0 };
+    renderTreasury();
+  });
+
+  db.collection(COL.requests).where('status','==','pending').onSnapshot(qs => {
+    REQS = qs.docs.map(d => Object.assign({ _id:d.id }, d.data())).sort((a,b)=>(a.ts||0)-(b.ts||0));
+    renderQueue();
   });
 
   db.collection(COL.shop).doc('catalog').onSnapshot(s => {
-    ITEMS = s.exists ? (s.data().items || []) : [];
-    renderItems();
+    ITEMS = s.exists ? (s.data().items || []) : []; renderItems();
   });
 
   db.collection(COL.orders).onSnapshot(qs => {
-    const rows = qs.docs.map(d => Object.assign({ _id:d.id }, d.data()))
-                        .sort((a,b) => (b.ts||0)-(a.ts||0));
-    renderOrders(rows);
+    renderOrders(qs.docs.map(d => Object.assign({ _id:d.id }, d.data()))
+      .sort((a,b)=>(b.ts||0)-(a.ts||0)));
   });
 
-  db.collection(COL.ledger).orderBy('ts','desc').limit(40).onSnapshot(qs => {
+  db.collection(COL.ledger).orderBy('ts','desc').limit(60).onSnapshot(qs => {
     renderLedger(qs.docs.map(d => d.data()));
   });
 
@@ -267,115 +398,456 @@ async function boot(){
   });
 
   db.collection(COL.map).doc('data').onSnapshot(s => {
-    POIS = s.exists ? (s.data().pois || []) : [];
-    renderPoiList(); drawPois();
+    POIS = s.exists ? (s.data().pois || []) : []; renderPoiList(); drawPois();
+  });
+
+  db.collection(COL.vote).doc('current').onSnapshot(s => {
+    VOTE = s.exists ? s.data() : null; fillVote(); renderVoteAdmin();
   });
 }
 
+const onAccounts = () => PLAYERS.filter(p => p.active !== false)
+  .reduce((s,p) => s + (Number(p.shares)||0), 0);
+
 /* ============================================================
-   Joueurs
+   Trésorerie
    ============================================================ */
+function renderTreasury(){
+  const acc = onAccounts();
+  const cap = TRES.issued || (acc + TRES.circulating + TRES.company);
+  const w = v => cap ? (v/cap*100).toFixed(2) + '%' : '0%';
+  document.getElementById('t-split').innerHTML =
+    '<i class="s-acc" style="width:' + w(acc) + '"></i>' +
+    '<i class="s-tok" style="width:' + w(TRES.circulating) + '"></i>' +
+    '<i class="s-co"  style="width:' + w(TRES.company) + '"></i>';
+  document.getElementById('t-key').innerHTML =
+    '<span><i style="background:var(--ac)"></i>En banque ' + num(acc) + '</span>' +
+    '<span><i style="background:var(--gold)"></i>En jetons ' + num(TRES.circulating) + '</span>' +
+    '<span><i style="background:var(--vio)"></i>Trésorerie ' + num(TRES.company) + '</span>';
+  const ecart = TRES.issued - (acc + TRES.circulating + TRES.company);
+  document.getElementById('t-stats').innerHTML = [
+    ['Capital émis', num(TRES.issued), 'plain'],
+    ['En jetons dehors', num(TRES.circulating), 'gold'],
+    ['Trésorerie', num(TRES.company), 'vio'],
+    ['Écart comptable', (ecart ? (ecart>0?'+':'') + num(ecart) : '0'), ecart ? 'gold' : 'plain']
+  ].map(c => '<div class="stat"><div class="stat-v sm ' + c[2] + '">' + c[1] +
+    '</div><div class="stat-l">' + c[0] + '</div></div>').join('');
+}
+
+document.getElementById('tr-go').addEventListener('click', async () => {
+  const n = Math.round(Number(document.getElementById('tr-qty').value)||0);
+  say('tr-msg','');
+  if (n <= 0){ say('tr-msg','Indique un nombre de parts.','err'); return; }
+  try{
+    await db.runTransaction(async tx => {
+      const ref = db.collection(COL.config).doc('treasury');
+      const s = await tx.get(ref);
+      const d = s.exists ? s.data() : {};
+      tx.set(ref, { issued:(Number(d.issued)||0) + n,
+                    company:(Number(d.company)||0) + n }, { merge:true });
+      ledgerEntry(tx, {
+        type: MV.issue, shares:n,
+        from: PARTY.issuance, fromName: PARTY_NAME.__issuance__,
+        to: PARTY.company,    toName:   PARTY_NAME.__company__,
+        label: 'Émission vers la trésorerie'
+      });
+    });
+    say('tr-msg', num(n) + ' parts émises vers la trésorerie.', 'ok');
+    document.getElementById('tr-qty').value = '';
+  }catch(e){ say('tr-msg', e.message, 'err'); }
+});
+
+/* ============================================================
+   Guichet
+   ============================================================ */
+function renderQueue(){
+  const box = document.getElementById('q-list');
+  document.getElementById('q-count').textContent = REQS.length;
+  const n = document.getElementById('n-req');
+  n.textContent = REQS.length; n.style.display = REQS.length ? '' : 'none';
+  if (!REQS.length){ box.innerHTML = '<div class="empty">Personne au guichet.</div>'; return; }
+  box.innerHTML = REQS.map(r => {
+    const p = PLAYERS.find(x => x.id === r.playerId) || {};
+    const wd = r.kind === 'withdraw';
+    return '<div class="ed" data-rid="' + esc(r._id) + '">' +
+      '<div class="ed-h"><div class="lst-main">' +
+        '<div class="lst-t">' + esc(r.playerName || r.playerId) + ' — ' +
+          '<span class="' + (wd ? 'amt-tok' : 'amt-in') + '">' +
+          (wd ? 'retirer' : 'déposer') + ' ' + num(r.qty) + ' jeton' + (r.qty>1?'s':'') +
+          '</span></div>' +
+        '<div class="lst-s">' + esc(when(r.ts)) + ' · en banque : ' + num(p.shares) + '</div></div></div>' +
+      '<div class="row">' +
+        '<button class="btn btn-sm btn-pri" data-act="ok">' +
+          (wd ? 'Remettre les jetons' : 'Encaisser les jetons') + '</button>' +
+        '<button class="btn btn-sm" data-act="no">Annuler la demande</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+document.getElementById('q-list').addEventListener('click', async ev => {
+  const b = ev.target.closest('button[data-act]'); if (!b) return;
+  const rid = b.closest('.ed').dataset.rid;
+  const r = REQS.find(x => x._id === rid); if (!r) return;
+  b.disabled = true;
+  try{
+    if (b.dataset.act === 'no'){
+      await db.collection(COL.requests).doc(rid).update({ status:'cancelled', doneAt:Date.now() });
+      return;
+    }
+    const res = r.kind === 'withdraw'
+      ? await withdrawTokens(r.playerId, r.qty)
+      : await depositTokens(r.playerId, r.qty);
+    if (!res.ok){ alert(res.error); b.disabled = false; return; }
+    await db.collection(COL.requests).doc(rid).update({ status:'done', doneAt:Date.now() });
+  }catch(e){ alert(e.message); b.disabled = false; }
+});
+
+function renderWhoSel(){
+  const sel = document.getElementById('d-who');
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">— Choisir —</option>' + PLAYERS.map(p =>
+    '<option value="' + esc(p.id) + '">' + esc(p.pseudo || p.id) +
+    ' (' + num(p.shares) + ')</option>').join('');
+  if (keep) sel.value = keep;
+}
+
+async function direct(kind){
+  const who = document.getElementById('d-who').value;
+  const n   = Math.round(Number(document.getElementById('d-qty').value)||0);
+  say('d-msg','');
+  if (!who){ say('d-msg','Choisis un actionnaire.','err'); return; }
+  if (n <= 0){ say('d-msg','Indique un nombre de jetons.','err'); return; }
+  const btn = document.getElementById(kind === 'withdraw' ? 'd-wd' : 'd-dp');
+  btn.disabled = true;
+  const r = kind === 'withdraw' ? await withdrawTokens(who, n) : await depositTokens(who, n);
+  btn.disabled = false;
+  if (r.ok){
+    say('d-msg','Opération enregistrée.','ok');
+    document.getElementById('d-qty').value = '';
+  } else say('d-msg', r.error, 'err');
+}
+document.getElementById('d-wd').addEventListener('click', () => direct('withdraw'));
+document.getElementById('d-dp').addEventListener('click', () => direct('deposit'));
+
+/* ============================================================
+   Actionnaires
+   ============================================================ */
+const randCode = () => String(Math.floor(1000 + Math.random()*9000));
+
+async function createPlayer(pseudo, code, role, shares){
+  const id = slugify(pseudo);
+  if (!id) throw new Error('Nom vide.');
+  const ref = db.collection(COL.players).doc(id);
+  if ((await ref.get()).exists) throw new Error('« ' + pseudo +' » existe déjà.');
+  const n = Math.max(0, Math.round(Number(shares)));
+  await ref.set({
+    pseudo, code: code || randCode(), role: role || '',
+    shares: 0, stats:{}, publicNote:'', active:true, createdAt: Date.now()
+  });
+  // La dotation initiale est une émission : elle crée le capital.
+  if (n > 0){
+    const r = await issueShares(id, n, 'Dotation initiale');
+    if (!r.ok) throw new Error(r.error);
+  }
+  return { id, code: code || null };
+}
+
 document.getElementById('np-go').addEventListener('click', async () => {
   const pseudo = document.getElementById('np-pseudo').value.trim();
-  const id = slugify(pseudo);
+  const shIn   = document.getElementById('np-sh').value;
   say('np-msg','');
-  if (!id){ say('np-msg','Il faut un nom d’agent.','err'); return; }
-  let code = document.getElementById('np-code').value.trim();
-  if (!code) code = String(Math.floor(1000 + Math.random()*9000));
-  const bal = document.getElementById('np-bal').value;
   try{
-    const ref = db.collection(COL.players).doc(id);
-    if ((await ref.get()).exists){ say('np-msg','Un dossier porte déjà cet identifiant.','err'); return; }
-    await ref.set({
-      pseudo, code,
-      role: document.getElementById('np-role').value.trim(),
-      balance: bal === '' ? (Number(GAME.startBalance)||0) : Math.round(Number(bal)||0),
-      stats: {}, publicNote: '', active: true, createdAt: Date.now()
-    });
+    const code = document.getElementById('np-code').value.trim() || randCode();
+    await createPlayer(pseudo, code,
+      document.getElementById('np-role').value.trim(),
+      shIn === '' ? GAME.startShares : shIn);
     say('np-msg','Dossier créé. Code : ' + code, 'ok');
-    ['np-pseudo','np-code','np-role','np-bal'].forEach(k => document.getElementById(k).value = '');
+    ['np-pseudo','np-code','np-role','np-sh'].forEach(k => document.getElementById(k).value = '');
   }catch(e){ say('np-msg', e.message, 'err'); }
+});
+
+document.getElementById('bulk-go').addEventListener('click', async () => {
+  const btn = document.getElementById('bulk-go');
+  const lines = document.getElementById('bulk-txt').value.split('\n')
+    .map(l => l.trim()).filter(Boolean);
+  say('bulk-msg','');
+  document.getElementById('bulk-out').innerHTML = '';
+  if (!lines.length){ say('bulk-msg','Rien à créer.','err'); return; }
+  if (!confirm('Créer ' + lines.length + ' dossier(s) ?')) return;
+  btn.disabled = true; btn.textContent = 'Création…';
+  const made = [], failed = [];
+  for (const l of lines){
+    const [pseudo, code, role, sh] = l.split(';').map(x => (x||'').trim());
+    try{
+      const c = code || randCode();
+      await createPlayer(pseudo, c, role, sh === '' || sh === undefined ? GAME.startShares : sh);
+      made.push({ pseudo, code:c, role, shares: sh || GAME.startShares });
+    }catch(e){ failed.push(pseudo + ' — ' + e.message); }
+  }
+  btn.disabled = false; btn.textContent = 'Créer tous les dossiers';
+  say('bulk-msg', made.length + ' dossier(s) créé(s)' +
+    (failed.length ? ', ' + failed.length + ' en échec' : '') + '.',
+    failed.length ? 'err' : 'ok');
+  document.getElementById('bulk-out').innerHTML =
+    (made.length ? '<hr class="hr"><h3>Codes à distribuer</h3><div class="scroll-x">' +
+      '<table class="tbl"><tr><th>Nom</th><th>Code</th><th>Rôle</th><th>Parts</th></tr>' +
+      made.map(m => '<tr><td>' + esc(m.pseudo) + '</td><td class="mono">' + esc(m.code) +
+        '</td><td class="lst-s">' + esc(m.role||'') + '</td><td>' + num(m.shares) +
+        '</td></tr>').join('') + '</table></div>' : '') +
+    (failed.length ? '<h3 style="color:var(--red)">Échecs</h3><ul>' +
+      failed.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>' : '');
+  if (!failed.length) document.getElementById('bulk-txt').value = '';
+});
+
+document.getElementById('p-print').addEventListener('click', () => {
+  const rows = PLAYERS.map(p => '<tr><td>' + esc(p.pseudo||p.id) + '</td><td class="c">' +
+    esc(p.code||'') + '</td><td>' + esc(p.role||'') + '</td></tr>').join('');
+  const w = window.open('', '_blank');
+  if (!w){ alert('Le navigateur a bloqué la fenêtre d’impression.'); return; }
+  w.document.write('<!DOCTYPE html><meta charset="utf-8"><title>Codes d’accès</title>' +
+    '<style>body{font:14px system-ui;padding:24px}h1{font-size:18px}' +
+    'table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:7px 9px;text-align:left}' +
+    '.c{font-family:monospace;font-size:16px;letter-spacing:2px}</style>' +
+    '<h1>' + esc(GAME.gameName||'') + ' — codes d’accès</h1>' +
+    '<table><tr><th>Nom d’actionnaire</th><th>Code</th><th>Qualité</th></tr>' + rows + '</table>');
+  w.document.close();
 });
 
 function renderPlayers(){
   const box = document.getElementById('p-list');
-  if (!PLAYERS.length){ box.innerHTML = '<div class="empty">Aucun agent.</div>'; return; }
-  box.innerHTML = PLAYERS.map(p => {
-    const st = JSON.stringify(p.stats || {}, null, 0);
-    return '<div class="ed" data-pid="' + esc(p.id) + '">' +
-      '<div class="ed-h">' +
-        '<div class="lst-main"><div class="lst-t">' + esc(p.pseudo || p.id) +
-          (p.active === false ? ' <span class="bdg bdg-dng">suspendu</span>' : '') +
-          (p.sharing ? ' <span class="bdg bdg-ok">&#128225; GPS</span>' : '') + '</div>' +
-          '<div class="lst-s mono">' + esc(p.id) + ' &middot; code ' + esc(p.code || '?') +
-          (p.role ? ' &middot; ' + esc(p.role) : '') + '</div></div>' +
-        '<div class="lst-amt">' + money(p.balance) + '</div>' +
-      '</div>' +
+  if (!PLAYERS.length){ box.innerHTML = '<div class="empty">Aucun actionnaire.</div>'; return; }
+  const cap = TRES.issued || onAccounts();
+  box.innerHTML = PLAYERS.map(p =>
+    '<div class="ed" data-pid="' + esc(p.id) + '">' +
+      '<div class="ed-h"><div class="lst-main">' +
+        '<div class="lst-t">' + esc(p.pseudo || p.id) +
+          (p.active === false ? ' <span class="bdg bdg-dng">suspendu</span>' : '') + '</div>' +
+        '<div class="lst-s mono">' + esc(p.id) + ' · code ' + esc(p.code || '?') +
+          (p.role ? ' · ' + esc(p.role) : '') + '</div></div>' +
+        '<div class="lst-amt">' + num(p.shares) +
+          '<span class="lst-s"> · ' + pctOf(p.shares, cap||1) + '</span></div></div>' +
       '<div class="row">' +
-        '<div class="field"><label>Cr&eacute;diter / d&eacute;biter (&plusmn;)</label>' +
-          '<input class="f-delta" type="number" step="1" placeholder="+100 ou -50"></div>' +
-        '<div class="field"><label>Motif</label><input class="f-lb" placeholder="Prime de zèle"></div>' +
+        '<div class="field"><label>Nombre de parts</label>' +
+          '<input class="f-qty" type="number" min="1" step="1" placeholder="0"></div>' +
+        '<div class="field"><label>Motif</label><input class="f-lb" placeholder="Accord de la direction"></div>' +
       '</div>' +
       '<div class="row" style="margin-bottom:10px">' +
-        '<button class="btn btn-sm btn-pri" data-act="adj">Appliquer</button>' +
-        '<button class="btn btn-sm" data-act="save">Enregistrer la fiche</button>' +
-        '<button class="btn btn-sm" data-act="toggle">' + (p.active === false ? 'R&eacute;activer' : 'Suspendre') + '</button>' +
-        '<button class="btn btn-sm btn-dng" data-act="del">Supprimer</button>' +
+        '<button class="btn btn-sm btn-gold" data-act="issue" title="Crée des parts nouvelles : dilue tout le monde">＋ Émettre</button>' +
+        '<button class="btn btn-sm btn-pri" data-act="grant" title="Depuis la trésorerie : capital constant">＋ Attribuer</button>' +
+        '<button class="btn btn-sm btn-dng" data-act="reclaim" title="Vers la trésorerie">－ Reprendre</button>' +
       '</div>' +
       '<div class="row">' +
-        '<div class="field"><label>R&ocirc;le</label><input class="f-role" value="' + esc(p.role || '') + '"></div>' +
+        '<div class="field"><label>Qualité</label><input class="f-role" value="' + esc(p.role || '') + '"></div>' +
         '<div class="field"><label>Code</label><input class="f-code mono" value="' + esc(p.code || '') + '"></div>' +
       '</div>' +
-      '<div class="field"><label>Note au dossier (visible du joueur)</label>' +
+      '<div class="field"><label>Note au dossier (visible de lui)</label>' +
         '<input class="f-note" value="' + esc(p.publicNote || '') + '"></div>' +
-      '<div class="field"><label>Stats (JSON &mdash; nombre, ou {"value":3,"max":10} pour une barre)</label>' +
-        '<input class="f-stats mono" value="' + esc(st) + '"></div>' +
-    '</div>';
-  }).join('');
+      '<div class="field"><label>Stats (JSON — nombre, ou {"value":3,"max":10} pour une barre)</label>' +
+        '<input class="f-stats mono" value="' + esc(JSON.stringify(p.stats || {})) + '"></div>' +
+      '<div class="row">' +
+        '<button class="btn btn-sm" data-act="save">Enregistrer la fiche</button>' +
+        '<button class="btn btn-sm" data-act="toggle">' +
+          (p.active === false ? 'Réactiver' : 'Suspendre') + '</button>' +
+        '<button class="btn btn-sm btn-dng" data-act="del">Supprimer</button>' +
+      '</div></div>').join('');
 }
 
 document.getElementById('p-list').addEventListener('click', async ev => {
   const b = ev.target.closest('button[data-act]'); if (!b) return;
-  const ed = b.closest('.ed'); const pid = ed.dataset.pid;
+  const ed = b.closest('.ed'), pid = ed.dataset.pid;
   const q = s => ed.querySelector(s);
   const ref = db.collection(COL.players).doc(pid);
   const p = PLAYERS.find(x => x.id === pid) || {};
+  const act = b.dataset.act;
+  b.disabled = true;
   try{
-    if (b.dataset.act === 'adj'){
-      const d = q('.f-delta').value;
-      if (!d) return;
-      const r = await adminAdjust(pid, d, q('.f-lb').value || 'Ajustement organisation');
-      if (!r.ok) alert(r.error); else { q('.f-delta').value=''; q('.f-lb').value=''; }
+    if (act === 'issue' || act === 'grant' || act === 'reclaim'){
+      const n = Math.round(Number(q('.f-qty').value)||0);
+      if (n <= 0){ alert('Indique un nombre de parts.'); return; }
+      const label = q('.f-lb').value;
+      const fn = act === 'issue' ? issueShares : act === 'grant' ? grantShares : reclaimShares;
+      const r = await fn(pid, n, label || undefined);
+      if (!r.ok) alert(r.error);
+      else { q('.f-qty').value = ''; q('.f-lb').value = ''; }
     }
-    else if (b.dataset.act === 'save'){
+    else if (act === 'save'){
       let stats = {};
       try{ stats = JSON.parse(q('.f-stats').value || '{}'); }
       catch(e){ alert('Stats : JSON invalide.'); return; }
       await ref.update({
-        role: q('.f-role').value.trim(),
-        code: q('.f-code').value.trim(),
-        publicNote: q('.f-note').value,
-        stats
+        role: q('.f-role').value.trim(), code: q('.f-code').value.trim(),
+        publicNote: q('.f-note').value, stats
       });
       b.textContent = 'Enregistré ✓';
       setTimeout(() => { b.textContent = 'Enregistrer la fiche'; }, 1400);
     }
-    else if (b.dataset.act === 'toggle'){
-      await ref.update({ active: p.active === false });
-    }
-    else if (b.dataset.act === 'del'){
-      if (!confirm('Supprimer définitivement le dossier de ' + (p.pseudo||pid) + ' ?')) return;
+    else if (act === 'toggle') await ref.update({ active: p.active === false });
+    else if (act === 'del'){
+      if (!confirm('Supprimer le dossier de ' + (p.pseudo||pid) + ' ?\n\n' +
+        'Ses ' + num(p.shares) + ' parts disparaissent du registre : pense à les reprendre d’abord ' +
+        'si tu veux garder la comptabilité juste.')) return;
       await ref.delete();
+      await db.collection(COL.ballots).doc(pid).delete().catch(()=>{});
     }
+  }catch(e){ alert(e.message); }
+  finally{ b.disabled = false; }
+});
+
+/* ============================================================
+   Scrutin
+   ============================================================ */
+function parseOptions(txt){
+  return String(txt||'').split('\n').map(l => l.trim()).filter(Boolean).map((l,i) => {
+    const [label, desc] = l.split(';').map(x => (x||'').trim());
+    return { id: slugify(label) || ('opt' + (i+1)), label, desc: desc || '' };
+  });
+}
+
+function fillVote(){
+  if (!VOTE) return;
+  const st = document.getElementById('v-st');
+  st.textContent = VOTE.status === 'open' ? 'ouvert' : VOTE.status === 'closed' ? 'clos' : 'brouillon';
+  st.className = 'bdg ' + (VOTE.status === 'open' ? 'bdg-ok' : VOTE.status === 'closed' ? 'bdg-dng' : '');
+  // On ne réécrit les champs que s'ils sont vides (ne pas écraser une saisie en cours)
+  const q = document.getElementById('v-q');
+  if (!q.value){
+    q.value = VOTE.question || '';
+    document.getElementById('v-d').value = VOTE.detail || '';
+    document.getElementById('v-opts').value = (VOTE.options||[])
+      .map(o => o.label + (o.desc ? ';' + o.desc : '')).join('\n');
+    if (VOTE.closesAt){
+      const d = new Date(Number(VOTE.closesAt) - new Date().getTimezoneOffset()*60000);
+      document.getElementById('v-close').value = d.toISOString().slice(0,16);
+    }
+  }
+}
+
+function voteDraft(){
+  const closeRaw = document.getElementById('v-close').value;
+  return {
+    question: document.getElementById('v-q').value.trim(),
+    detail:   document.getElementById('v-d').value.trim(),
+    options:  parseOptions(document.getElementById('v-opts').value),
+    closesAt: closeRaw ? new Date(closeRaw).getTime() : null
+  };
+}
+
+document.getElementById('v-save').addEventListener('click', async () => {
+  const d = voteDraft();
+  say('v-msg','');
+  if (!d.question){ say('v-msg','Il faut une question.','err'); return; }
+  try{
+    await db.collection(COL.vote).doc('current').set(
+      Object.assign(d, { status: (VOTE && VOTE.status) || 'draft' }), { merge:true });
+    say('v-msg','Brouillon enregistré. Les actionnaires ne voient rien tant qu’il n’est pas ouvert.','ok');
+  }catch(e){ say('v-msg', e.message, 'err'); }
+});
+
+document.getElementById('v-open').addEventListener('click', async () => {
+  const d = voteDraft();
+  say('v-msg','');
+  if (!d.question){ say('v-msg','Il faut une question.','err'); return; }
+  if (d.options.length < 2){ say('v-msg','Il faut au moins deux options.','err'); return; }
+  const was = VOTE && VOTE.status === 'closed';
+  if (!confirm(was
+      ? 'Réouvrir le scrutin ? Le résultat publié sera effacé (les bulletins sont conservés).'
+      : 'Ouvrir le scrutin ? Les ' + PLAYERS.length + ' actionnaires pourront voter.')) return;
+  try{
+    await db.collection(COL.vote).doc('current').set(Object.assign(d, {
+      status:'open', openedAt: Date.now(),
+      results: firebase.firestore.FieldValue.delete()
+    }), { merge:true });
+    say('v-msg','Scrutin ouvert.','ok');
+  }catch(e){ say('v-msg', e.message, 'err'); }
+});
+
+document.getElementById('v-tally').addEventListener('click', async () => {
+  say('v-msg','');
+  if (!VOTE || VOTE.status === 'draft'){ say('v-msg','Aucun scrutin ouvert.','err'); return; }
+  const act = PLAYERS.filter(p => p.active !== false);
+  const voted = Object.keys((VOTE.voted)||{}).length;
+  if (!confirm('Clore et dépouiller ?\n\n' + voted + ' votant(s) sur ' + act.length + '.\n' +
+    'Les jetons encore dehors (' + num(TRES.circulating) + ') ne compteront pas.')) return;
+  const btn = document.getElementById('v-tally');
+  btn.disabled = true;
+  const r = await tallyVote();
+  btn.disabled = false;
+  say('v-msg', r.ok
+    ? 'Dépouillé : ' + r.voters + ' bulletins, ' + num(r.expressed) + ' parts exprimées.'
+    : r.error, r.ok ? 'ok' : 'err');
+});
+
+function renderVoteAdmin(){
+  const box = document.getElementById('v-part');
+  const resP = document.getElementById('v-res-pnl');
+  if (!VOTE || VOTE.status === 'draft' || !VOTE.status){
+    box.innerHTML = '<div class="empty">Aucun scrutin ouvert.</div>';
+    resP.style.display = 'none';
+    return;
+  }
+  const voted = VOTE.voted || {};
+  const act = PLAYERS.filter(p => p.active !== false);
+  const yes = act.filter(p => voted[p.id]), no = act.filter(p => !voted[p.id]);
+  const acc = onAccounts();
+  const repr = yes.reduce((s,p) => s + (Number(p.shares)||0), 0);
+  box.innerHTML =
+    '<div class="stat-grid">' +
+      '<div class="stat"><div class="stat-v">' + yes.length + '<span style="font-size:.6em;color:var(--td)">/' +
+        act.length + '</span></div><div class="stat-l">Votants</div></div>' +
+      '<div class="stat"><div class="stat-v gold sm">' + pctOf(repr, acc||1) +
+        '</div><div class="stat-l">Capital exprimé</div></div>' +
+      '<div class="stat"><div class="stat-v sm gold">' + num(TRES.circulating) +
+        '</div><div class="stat-l">Jetons dehors</div></div>' +
+    '</div>' +
+    (VOTE.closesAt ? '<p class="mini">Clôture dans <strong>' + esc(countdown(VOTE.closesAt)) +
+      '</strong> (' + esc(when(VOTE.closesAt)) + ')</p>' : '') +
+    (no.length
+      ? '<hr class="hr"><h3 style="margin:0 0 7px">N’ont pas voté (' + no.length + ')</h3>' +
+        '<p style="margin:0;color:var(--td);font-size:.9rem">' +
+        no.map(p => esc(p.pseudo||p.id) + ' <span class="lst-s">(' + num(p.shares) + ')</span>').join(' · ') +
+        '</p>'
+      : '<p class="mini" style="color:var(--ac)">Tout le monde a voté.</p>');
+
+  const R = VOTE.results;
+  if (VOTE.status === 'closed' && R){
+    resP.style.display = '';
+    const max = Math.max(1, ...(R.ranked||[]).map(o => o.shares));
+    document.getElementById('v-res').innerHTML =
+      (R.ranked||[]).map(o => {
+        const win = R.winnerId === o.id;
+        return '<div class="res' + (win ? ' res-win' : '') + '">' +
+          '<div class="res-h"><span class="res-t">' + (win ? '★ ' : '') + esc(o.label || o.id) +
+          '</span><span class="res-v">' + num(o.shares) + ' · ' + pctOf(o.shares, R.expressed||1) +
+          '</span></div><div class="res-bar"><i style="width:' + (o.shares/max*100).toFixed(1) +
+          '%"></i></div><div class="lst-s" style="margin-top:3px">' + num(o.voters) +
+          ' actionnaire' + (o.voters>1?'s':'') + '</div></div>';
+      }).join('') +
+      (R.tie ? '<div class="msg msg-err">Égalité parfaite.</div>' : '') +
+      '<p class="mini">' + num(R.expressed) + ' parts exprimées sur ' + num(R.onAccounts) +
+      ' en banque · ' + num(R.voters) + ' votants' +
+      (R.voidBallots ? ' · ' + num(R.voidBallots) + ' nul(s)' : '') +
+      ' · dépouillé ' + esc(when(R.ts)) + '</p>';
+  } else resP.style.display = 'none';
+}
+
+document.getElementById('rz-ballots').addEventListener('click', async () => {
+  if (!confirm('Effacer TOUS les bulletins et remettre le scrutin à zéro ?')) return;
+  try{
+    const bs = await db.collection(COL.ballots).get();
+    await Promise.all(bs.docs.map(d => d.ref.delete()));
+    await db.collection(COL.vote).doc('current').set({
+      status:'draft',
+      voted:  firebase.firestore.FieldValue.delete(),
+      results:firebase.firestore.FieldValue.delete()
+    }, { merge:true });
+    alert('Bulletins effacés.');
   }catch(e){ alert(e.message); }
 });
 
 /* ============================================================
    Magasin
    ============================================================ */
-function saveItems(items){
-  return db.collection(COL.shop).doc('catalog').set({ items }, { merge:true });
-}
+const saveItems = items => db.collection(COL.shop).doc('catalog').set({ items }, { merge:true });
 
 document.getElementById('ni-go').addEventListener('click', async () => {
   const name = document.getElementById('ni-name').value.trim();
@@ -406,15 +878,15 @@ function renderItems(){
     '<div class="ed" data-iid="' + esc(i.id) + '">' +
       '<div class="ed-h"><div class="lst-main">' +
         '<div class="lst-t">' + (i.icon ? esc(i.icon) + ' ' : '') + esc(i.name) +
-          (i.hidden ? ' <span class="bdg">masqu&eacute;</span>' : '') + '</div>' +
+          (i.hidden ? ' <span class="bdg">masqué</span>' : '') + '</div>' +
         '<div class="lst-s">' + esc(i.desc || '') + '</div></div>' +
-        '<div class="price">' + money(i.price) + '</div></div>' +
+        '<div class="price">' + num(i.price) + ' ' + esc(GAME.units||'parts') + '</div></div>' +
       '<div class="row">' +
-        '<div class="field"><label>Prix</label><input class="f-price" type="number" step="1" value="' + Number(i.price||0) + '"></div>' +
-        '<div class="field"><label>Stock (vide = illimit&eacute;)</label><input class="f-stock" type="number" step="1" value="' +
+        '<div class="field"><label>Prix (parts)</label><input class="f-price" type="number" step="1" value="' +
+          Number(i.price||0) + '"></div>' +
+        '<div class="field"><label>Stock (vide = illimité)</label><input class="f-stock" type="number" step="1" value="' +
           (i.stock === undefined || i.stock === null ? '' : Number(i.stock)) + '"></div>' +
-      '</div>' +
-      '<div class="row">' +
+      '</div><div class="row">' +
         '<button class="btn btn-sm btn-pri" data-act="save">Enregistrer</button>' +
         '<button class="btn btn-sm" data-act="hide">' + (i.hidden ? 'Afficher' : 'Masquer') + '</button>' +
         '<button class="btn btn-sm btn-dng" data-act="del">Retirer</button>' +
@@ -423,9 +895,9 @@ function renderItems(){
 
 document.getElementById('i-list').addEventListener('click', async ev => {
   const b = ev.target.closest('button[data-act]'); if (!b) return;
-  const ed = b.closest('.ed'); const iid = ed.dataset.iid;
+  const ed = b.closest('.ed');
   const items = ITEMS.map(x => Object.assign({}, x));
-  const i = items.findIndex(x => x.id === iid); if (i < 0) return;
+  const i = items.findIndex(x => x.id === ed.dataset.iid); if (i < 0) return;
   if (b.dataset.act === 'save'){
     items[i].price = Math.round(Number(ed.querySelector('.f-price').value)||0);
     const s = ed.querySelector('.f-stock').value;
@@ -445,33 +917,42 @@ document.getElementById('i-list').addEventListener('click', async ev => {
 function renderOrders(rows){
   const pend = rows.filter(o => o.status !== 'delivered');
   document.getElementById('o-pend').textContent = pend.length;
+  const n = document.getElementById('n-ord');
+  n.textContent = pend.length; n.style.display = pend.length ? '' : 'none';
   const box = document.getElementById('o-list');
   if (!rows.length){ box.innerHTML = '<div class="empty">Aucune commande.</div>'; return; }
-  box.innerHTML = '<ul class="lst">' + rows.slice(0,50).map(o =>
-    '<li><div class="lst-main"><div class="lst-t">' + esc(o.playerName || o.playerId) + ' &mdash; ' +
+  box.innerHTML = '<ul class="lst">' + rows.slice(0,60).map(o =>
+    '<li><div class="lst-main"><div class="lst-t">' + esc(o.playerName || o.playerId) + ' — ' +
       esc(o.itemName || '?') + (o.qty > 1 ? ' ×' + o.qty : '') + '</div>' +
-      '<div class="lst-s">' + esc(when(o.ts)) + ' &middot; ' + money(o.total) + '</div></div>' +
-      (o.status === 'delivered'
-        ? '<span class="bdg bdg-ok">Livr&eacute;e</span>'
-        : '<button class="btn btn-sm btn-pri" data-deliver="' + esc(o._id) + '">Marquer livr&eacute;e</button>') +
+      '<div class="lst-s">' + esc(when(o.ts)) + ' · ' + num(o.total) + ' ' + esc(GAME.units||'parts') +
+      '</div></div>' + (o.status === 'delivered'
+        ? '<span class="bdg bdg-ok">Remise</span>'
+        : '<button class="btn btn-sm btn-pri" data-deliver="' + esc(o._id) + '">Marquer remise</button>') +
     '</li>').join('') + '</ul>';
 }
 
 document.getElementById('o-list').addEventListener('click', async ev => {
   const b = ev.target.closest('button[data-deliver]'); if (!b) return;
   b.disabled = true;
-  try{ await db.collection(COL.orders).doc(b.dataset.deliver).update({ status:'delivered', deliveredAt: Date.now() }); }
+  try{ await db.collection(COL.orders).doc(b.dataset.deliver)
+    .update({ status:'delivered', deliveredAt: Date.now() }); }
   catch(e){ alert(e.message); b.disabled = false; }
 });
 
+const MV_LABEL = {
+  transfer:'Virement', withdraw:'Retrait', deposit:'Dépôt',
+  issue:'Émission', grant:'Attribution', reclaim:'Reprise', shop:'Achat'
+};
 function renderLedger(rows){
   const box = document.getElementById('l-list');
   if (!rows.length){ box.innerHTML = '<div class="empty">Aucun mouvement.</div>'; return; }
-  box.innerHTML = '<table class="tbl"><tr><th>Quand</th><th>De</th><th>Vers</th><th>Montant</th><th>Motif</th></tr>' +
-    rows.map(r => '<tr><td class="lst-s">' + esc(when(r.ts)) + '</td>' +
-      '<td>' + esc(r.fromName || r.from) + '</td>' +
-      '<td>' + esc(r.toName || r.to) + '</td>' +
-      '<td class="lst-amt">' + money(r.amount) + '</td>' +
+  box.innerHTML = '<table class="tbl"><tr><th>Quand</th><th>Type</th><th>De</th><th>Vers</th>' +
+    '<th class="nowrap">Parts</th><th>Motif</th></tr>' +
+    rows.map(r => '<tr><td class="lst-s nowrap">' + esc(when(r.ts)) + '</td>' +
+      '<td class="lst-s">' + esc(MV_LABEL[r.type] || r.type || '—') + '</td>' +
+      '<td>' + esc(partyName(r.from, r.fromName)) + '</td>' +
+      '<td>' + esc(partyName(r.to, r.toName)) + '</td>' +
+      '<td class="lst-amt">' + num(r.shares) + '</td>' +
       '<td class="lst-s">' + esc(r.label || '') + '</td></tr>').join('') + '</table>';
 }
 
@@ -495,22 +976,21 @@ document.getElementById('nj-go').addEventListener('click', async () => {
   }catch(e){ say('nj-msg', e.message, 'err'); }
 });
 
-let JENTRIES = [];
 function renderJournal(entries){
   JENTRIES = entries;
   const box = document.getElementById('j-list');
   const rows = entries.slice().sort((a,b) => (b.ts||0)-(a.ts||0));
-  if (!rows.length){ box.innerHTML = '<div class="empty">Rien de publi&eacute;.</div>'; return; }
-  box.innerHTML = rows.map(e =>
-    '<div class="jr"><div class="jr-ts">' + esc(when(e.ts)) +
-      ' <button class="btn btn-sm btn-dng" data-jdel="' + esc(e.id) + '">Retirer</button></div>' +
-      '<div class="jr-t">' + esc(e.title || '') + '</div>' +
-      '<div class="jr-x">' + esc(e.text || '') + '</div></div>').join('');
+  box.innerHTML = rows.length
+    ? rows.map(e => '<div class="jr"><div class="jr-ts">' + esc(when(e.ts)) +
+        ' <button class="btn btn-sm btn-dng" data-jdel="' + esc(e.id) + '">Retirer</button></div>' +
+        '<div class="jr-t">' + esc(e.title || '') + '</div>' +
+        '<div class="jr-x">' + esc(e.text || '') + '</div></div>').join('')
+    : '<div class="empty">Rien de publié.</div>';
 }
 
 document.getElementById('j-list').addEventListener('click', async ev => {
   const b = ev.target.closest('button[data-jdel]'); if (!b) return;
-  if (!confirm('Retirer cette publication ?')) return;
+  if (!confirm('Retirer ce communiqué ?')) return;
   try{
     await db.collection(COL.journal).doc('public')
       .set({ entries: JENTRIES.filter(e => e.id !== b.dataset.jdel) }, { merge:true });
@@ -522,11 +1002,10 @@ document.getElementById('j-list').addEventListener('click', async ev => {
    ============================================================ */
 function initMap(){
   if (AMAP){ AMAP.invalidateSize(); return; }
-  AMAP = L.map('amap').setView(GAME.mapCenter || [48.8566,2.3522], GAME.mapZoom || 15);
+  AMAP = L.map('amap').setView(GAME.mapCenter || [48.8566,2.3522], GAME.mapZoom || 17);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     { maxZoom:19, attribution:'&copy; OpenStreetMap' }).addTo(AMAP);
   poiLayer = L.layerGroup().addTo(AMAP);
-  posLayer = L.layerGroup().addTo(AMAP);
   AMAP.on('click', async e => {
     const name = document.getElementById('nm-name').value.trim();
     if (!name){ say('am-msg','Donne d’abord un nom au point.','err'); return; }
@@ -542,7 +1021,7 @@ function initMap(){
       document.getElementById('nm-desc').value = '';
     }catch(err){ say('am-msg', err.message, 'err'); }
   });
-  drawPois(); drawPositions();
+  drawPois();
 }
 
 function drawPois(){
@@ -556,25 +1035,15 @@ function drawPois(){
   });
 }
 
-function drawPositions(){
-  if (!posLayer) return;
-  posLayer.clearLayers();
-  PLAYERS.forEach(p => {
-    if (!p.pos || typeof p.pos.lat !== 'number') return;
-    L.marker([p.pos.lat,p.pos.lng], { icon: L.divIcon({ className:'', html:'<div class="me-dot"></div>', iconSize:[16,16] }) })
-     .bindPopup('<strong>' + esc(p.pseudo||p.id) + '</strong><br>' + esc(when(p.pos.ts)))
-     .addTo(posLayer);
-  });
-}
-
 function renderPoiList(){
   const box = document.getElementById('m-list');
   if (!POIS.length){ box.innerHTML = '<div class="empty">Aucun point.</div>'; return; }
   box.innerHTML = '<ul class="lst">' + POIS.map(p =>
     '<li><div class="lst-main"><div class="lst-t">' + esc(p.name||'') + '</div>' +
       '<div class="lst-s mono">' + Number(p.lat).toFixed(5) + ', ' + Number(p.lng).toFixed(5) +
-      (p.desc ? ' &middot; ' + esc(p.desc) : '') + '</div></div>' +
-      '<button class="btn btn-sm btn-dng" data-pdel="' + esc(p.id) + '">Retirer</button></li>').join('') + '</ul>';
+      (p.desc ? ' · ' + esc(p.desc) : '') + '</div></div>' +
+      '<button class="btn btn-sm btn-dng" data-pdel="' + esc(p.id) + '">Retirer</button></li>').join('') +
+    '</ul>';
 }
 
 document.getElementById('m-list').addEventListener('click', async ev => {
@@ -589,12 +1058,10 @@ document.getElementById('m-list').addEventListener('click', async ev => {
    Réglages
    ============================================================ */
 function fillCfg(){
-  const v = (id,val) => document.getElementById(id).value = (val === undefined || val === null) ? '' : val;
-  v('c-name',  GAME.gameName);
-  v('c-tag',   GAME.tagline);
-  v('c-cur',   GAME.currency);
-  v('c-sym',   GAME.currencySym);
-  v('c-start', GAME.startBalance);
+  const v = (id,val) => document.getElementById(id).value = (val == null) ? '' : val;
+  v('c-name',  GAME.gameName);   v('c-tag',   GAME.tagline);
+  v('c-unit',  GAME.unit);       v('c-units', GAME.units);
+  v('c-start', GAME.startShares);v('c-topn',  GAME.registryTop);
   v('c-lat',  (GAME.mapCenter||[])[0]);
   v('c-lng',  (GAME.mapCenter||[])[1]);
   v('c-zoom',  GAME.mapZoom);
@@ -602,22 +1069,21 @@ function fillCfg(){
 }
 
 document.getElementById('c-go').addEventListener('click', async () => {
-  const num = id => Number(document.getElementById(id).value);
-  const val = id => document.getElementById(id).value.trim();
+  const n = id => Number(document.getElementById(id).value);
+  const s = id => document.getElementById(id).value.trim();
   say('cfg-msg','');
   try{
     await db.collection(COL.config).doc('game').set({
-      gameName:   val('c-name'),
-      tagline:    val('c-tag'),
-      currency:   val('c-cur'),
-      currencySym:val('c-sym'),
-      startBalance: Math.round(num('c-start')||0),
-      mapCenter: [num('c-lat')||0, num('c-lng')||0],
-      mapZoom:   Math.round(num('c-zoom')||15),
-      rules:     document.getElementById('c-rules').value
+      gameName: s('c-name'), tagline: s('c-tag'),
+      unit: s('c-unit') || 'part', units: s('c-units') || 'parts',
+      startShares: Math.max(0, Math.round(n('c-start')||0)),
+      registryTop: Math.max(0, Math.round(n('c-topn')||0)),
+      mapCenter: [n('c-lat')||0, n('c-lng')||0],
+      mapZoom: Math.round(n('c-zoom')||17),
+      rules: document.getElementById('c-rules').value
     }, { merge:true });
     await loadGame();
-    say('cfg-msg','Réglages enregistrés. Les joueurs les reçoivent au prochain chargement.','ok');
+    say('cfg-msg','Réglages enregistrés. Les actionnaires les reçoivent au prochain chargement.','ok');
   }catch(e){ say('cfg-msg', e.message, 'err'); }
 });
 </script>

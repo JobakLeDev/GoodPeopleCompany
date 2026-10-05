@@ -14,7 +14,7 @@
   .hero .brand{justify-content:center;margin-bottom:18px}
   .hero .brand-mark{width:54px;height:54px;border-radius:14px;font-size:22px}
   .hero h1{font-size:1.75rem;margin-bottom:6px}
-  .hero p{color:var(--td);max-width:460px;margin:0 auto}
+  .hero p{color:var(--td);max-width:470px;margin:0 auto}
   .motto{margin-top:22px;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--tf)}
   .feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
   .feat div{background:var(--bg2);border:1px solid var(--b);border-radius:var(--r-sm);
@@ -32,23 +32,23 @@
       <div class="brand-mark">GP</div>
       <div>
         <span class="brand-txt" id="h-name">Good People Company</span>
-        <span class="brand-sub" id="h-tag">Programme d&rsquo;int&eacute;gration citoyenne</span>
+        <span class="brand-sub" id="h-tag">Assembl&eacute;e g&eacute;n&eacute;rale extraordinaire</span>
       </div>
     </div>
-    <h1>Bienvenue, agent.</h1>
-    <p>Identifie-toi pour acc&eacute;der &agrave; ton dossier personnel, ton portefeuille
-       et les directives en cours.</p>
-    <div class="motto">Soyez bons &middot; Soyez utiles &middot; Soyez vus</div>
+    <h1>Bienvenue, actionnaire.</h1>
+    <p>Identifie-toi pour consulter tes parts, le registre, l&rsquo;ordre du jour
+       et, le moment venu, d&eacute;poser ton bulletin.</p>
+    <div class="motto">Une part &middot; Une voix &middot; Aucun regret</div>
   </div>
 
   <!-- ---------- Connexion ---------- -->
   <div class="pnl">
-    <div class="pnl-h"><span class="ic">&#128273;</span> Acc&egrave;s agent</div>
+    <div class="pnl-h"><span class="ic">&#128273;</span> Acc&egrave;s actionnaire</div>
     <div class="pnl-b">
       <div id="msg"></div>
       <form id="login-form" autocomplete="off">
         <div class="field">
-          <label for="f-pseudo">Nom d&rsquo;agent</label>
+          <label for="f-pseudo">Nom d&rsquo;actionnaire</label>
           <input id="f-pseudo" name="pseudo" type="text" placeholder="Celui inscrit sur ton badge"
                  autocapitalize="words" required>
         </div>
@@ -57,33 +57,33 @@
           <input id="f-code" name="code" type="text" inputmode="numeric" class="mono"
                  placeholder="&bull; &bull; &bull; &bull;" required>
         </div>
-        <button class="btn btn-pri btn-blk" id="f-go" type="submit">Acc&eacute;der &agrave; mon dossier</button>
+        <button class="btn btn-pri btn-blk" id="f-go" type="submit">Acc&eacute;der &agrave; mon compte</button>
       </form>
       <hr class="hr">
       <p style="margin:0;font-size:12.5px;color:var(--tf)">
-        Code perdu ou dossier introuvable&nbsp;? Adresse-toi &agrave; un membre de l&rsquo;organisation.
+        Code perdu ou nom introuvable au registre&nbsp;? Pr&eacute;sente-toi au guichet.
       </p>
     </div>
   </div>
 
-  <!-- ---------- Ce que tu y trouveras ---------- -->
+  <!-- ---------- Services ---------- -->
   <div class="pnl">
-    <div class="pnl-h"><span class="ic">&#128196;</span> Services disponibles</div>
+    <div class="pnl-h"><span class="ic">&#128196;</span> Ce que tu y trouveras</div>
     <div class="pnl-b">
       <div class="feat">
-        <div><span class="ic">&#128176;</span>Portefeuille</div>
-        <div><span class="ic">&#128506;</span>Plan du site</div>
-        <div><span class="ic">&#128220;</span>R&egrave;glement</div>
-        <div><span class="ic">&#128202;</span>Statistiques</div>
-        <div><span class="ic">&#128722;</span>Magasin</div>
-        <div><span class="ic">&#128240;</span>Journal public</div>
+        <div><span class="ic">&#128312;</span>Mes parts</div>
+        <div><span class="ic">&#128499;</span>Le vote</div>
+        <div><span class="ic">&#128202;</span>Le registre</div>
+        <div><span class="ic">&#128722;</span>Le magasin</div>
+        <div><span class="ic">&#128240;</span>Communiqu&eacute;s</div>
+        <div><span class="ic">&#8505;</span>Plan &amp; r&egrave;gles</div>
       </div>
     </div>
   </div>
 
   <footer>
     Good People Company &mdash; document interne. Toute reproduction est encourag&eacute;e.<br>
-    <a href="admin.html">Acc&egrave;s organisation</a>
+    <a href="admin.html">Acc&egrave;s guichet</a>
   </footer>
 
 </div>
@@ -94,13 +94,12 @@
 <script src="common/app.js"></script>
 <script>
 (async function(){
-  // Déjà connecté → on file directement vers le dossier
+  const logout = new URLSearchParams(location.search).get('logout');
+  if (logout) clearSession();
+
+  // Déjà connecté → directement sur son compte
   const s = getSession();
-  if (s && s.id && !new URLSearchParams(location.search).get('logout')){
-    location.replace('perso.html');
-    return;
-  }
-  if (new URLSearchParams(location.search).get('logout')) clearSession();
+  if (!logout && s && s.id){ location.replace('perso.html'); return; }
 
   await loadGame();
   document.getElementById('h-name').textContent = GAME.gameName || 'Good People Company';
@@ -119,7 +118,7 @@
     );
     if (r.ok){ location.href = 'perso.html'; return; }
     say('msg', r.error, 'err');
-    btn.disabled = false; btn.textContent = 'Accéder à mon dossier';
+    btn.disabled = false; btn.textContent = 'Accéder à mon compte';
   });
 })();
 </script>

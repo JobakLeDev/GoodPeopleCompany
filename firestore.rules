@@ -6,40 +6,61 @@ rules_version = '2';
 //  Firestore Database → Règles → coller → Publier
 // ============================================================
 //
-//  ⚠️ LIRE CECI. Ce jeu n'utilise PAS Firebase Auth (login = pseudo +
-//  code, vérifié côté navigateur). Firestore ne peut donc pas savoir
-//  QUI écrit : n'importe qui ouvrant la console du navigateur peut
-//  lire les codes d'accès et modifier les soldes.
+//  ⚠️ LIRE CECI. Ce jeu n'utilise PAS Firebase Auth (la connexion est
+//  « nom + code », vérifiée dans le navigateur). Firestore ne peut donc
+//  pas savoir QUI écrit : n'importe qui ouvrant la console de son
+//  navigateur peut lire les codes d'accès, les bulletins de vote, et
+//  modifier son nombre de parts.
 //
-//  C'est un compromis assumé pour un jeu entre joueurs consentants sur
-//  un week-end. Ce que ça implique concrètement :
-//    · ne mets JAMAIS de donnée personnelle réelle dans ces documents ;
-//    · le code organisation d'admin.html est un verrou de confort, pas
-//      une barrière ;
-//    · après le week-end, va dans la console et repasse tout en
+//  C'est un compromis assumé pour un week-end entre 40 personnes
+//  consentantes. Ce que ça implique concrètement :
+//    · ne mets AUCUNE donnée personnelle réelle dans ces documents ;
+//    · le code du guichet (admin.html) est un verrou de confort ;
+//    · le scrutin n'est pas secret au sens technique — il l'est au sens
+//      social : rien dans l'interface ne révèle un bulletin avant le
+//      dépouillement ;
+//    · après le week-end, repasse tout en
 //      `allow read, write: if false;` (ou supprime le projet).
 //
-//  Si tu veux une vraie étanchéité plus tard : activer Firebase Auth
-//  (anonyme ou e-mail), stocker l'uid dans /players/{id}.uid, puis
-//  n'autoriser l'écriture du solde qu'à des Cloud Functions.
+//  Si tu rejoues ce jeu avec des inconnus : activer Firebase Auth
+//  (anonyme), stocker l'uid dans /players/{id}.uid, et déplacer les
+//  mouvements de parts + le dépouillement dans des Cloud Functions,
+//  seules habilitées à écrire `shares`, `/ledger` et `/vote`.
 // ============================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Fiches joueurs : pseudo, code, solde, stats, position partagée.
+    // Comptes actionnaires. `shares` = parts EN BANQUE.
     match /players/{playerId} {
       allow read, write: if true;
     }
 
-    // Grand livre des transactions. Écrit par les transactions du client.
-    // Immuable par convention (on n'édite jamais une ligne existante).
+    // Grand livre des mouvements de parts. Écrit par les transactions
+    // du client ; jamais réécrit (l'historique ne se retouche pas).
     match /ledger/{entryId} {
       allow read, create: if true;
-      allow update, delete: if false;   // l'historique ne se réécrit pas
+      allow update, delete: if false;
     }
 
-    // Commandes du magasin (status: pending → delivered).
+    // File d'attente du guichet (retrait / dépôt de jetons).
+    match /requests/{reqId} {
+      allow read, write: if true;
+    }
+
+    // Bulletins. Un document par actionnaire : la page joueur ne lit
+    // que le sien, et le doc /vote/current ne porte jamais le contenu
+    // d'un bulletin — seulement la liste de qui a voté.
+    match /ballots/{playerId} {
+      allow read, write: if true;
+    }
+
+    // Le scrutin : /vote/current
+    match /vote/{docId} {
+      allow read, write: if true;
+    }
+
+    // Commandes du magasin (pending → delivered).
     match /orders/{orderId} {
       allow read, write: if true;
     }
@@ -49,7 +70,7 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // Journal public : /journal/public = { entries: [...] }
+    // Communiqués : /journal/public = { entries: [...] }
     match /journal/{docId} {
       allow read, write: if true;
     }
@@ -59,7 +80,7 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // Réglages de partie : /config/game
+    // Réglages et trésorerie : /config/game, /config/treasury
     match /config/{docId} {
       allow read, write: if true;
     }
